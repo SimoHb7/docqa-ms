@@ -58,12 +58,12 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str = "/"
 
     # Service URLs (for routing to microservices)
-    DOC_INGESTOR_URL: str = "http://localhost:8001"
-    DEID_URL: str = "http://localhost:8002"
-    INDEXER_SEMANTIQUE_URL: str = "http://localhost:8003"
-    LLM_QA_URL: str = "http://localhost:8004"
-    SYNTHESE_COMPARATIVE_URL: str = "http://localhost:8005"
-    AUDIT_LOGGER_URL: str = "http://localhost:8006"
+    DOC_INGESTOR_URL: str = "http://doc-ingestor:8001"
+    DEID_URL: str = "http://deid:8002"
+    INDEXER_SEMANTIQUE_URL: str = "http://indexer-semantique:8003"
+    LLM_QA_URL: str = "http://llm-qa:8004"
+    SYNTHESE_COMPARATIVE_URL: str = "http://synthese-comparative:8005"
+    AUDIT_LOGGER_URL: str = "http://audit-logger:8006"
 
     # File Upload Configuration
     MAX_UPLOAD_SIZE_MB: int = 50
