@@ -1,50 +1,14 @@
--- DocQA-MS Seed Data
--- Sample data for development and testing
+-- DocQA-MS Seed Data - SIMPLIFIED FOR STUDENT PROJECT
+-- Only essential sample data for Phase 1
 
 -- ==========================================
--- SAMPLE DOCUMENTS
+-- ADDITIONAL SAMPLE DATA (if needed beyond schema.sql)
 -- ==========================================
 
-INSERT INTO documents (
-    filename, original_filename, file_path, file_size, mime_type,
-    document_type, patient_id, processing_status, metadata, checksum
-) VALUES
-(
-    'sample_medical_report_1.pdf',
-    'Rapport_Medical_Patient_X_2024.pdf',
-    '/data/test_documents/sample_medical_report_1.pdf',
-    245760,
-    'application/pdf',
-    'medical_report',
-    'ANON_PAT_001',
-    'processed',
-    '{"author": "Dr. Smith", "date": "2024-01-15", "specialty": "cardiology", "language": "fr"}',
-    'a1b2c3d4e5f6...'
-),
-(
-    'sample_lab_results_1.pdf',
-    'Resultats_Analyses_Patient_Y_2024.pdf',
-    '/data/test_documents/sample_lab_results_1.pdf',
-    189432,
-    'application/pdf',
-    'lab_results',
-    'ANON_PAT_002',
-    'processed',
-    '{"lab_name": "Laboratoire Central", "date": "2024-01-20", "tests": ["blood_count", "biochemistry"]}',
-    'f6e5d4c3b2a1...'
-),
-(
-    'sample_prescription_1.pdf',
-    'Ordonnance_Patient_Z_2024.pdf',
-    '/data/test_documents/sample_prescription_1.pdf',
-    87654,
-    'application/pdf',
-    'prescription',
-    'ANON_PAT_003',
-    'processed',
-    '{"doctor": "Dr. Johnson", "date": "2024-01-25", "medications": ["aspirin", "metformin"]}',
-    '1a2b3c4d5e6f...'
-);
+-- Note: The main sample data is already in schema.sql
+-- This file is kept minimal for Phase 1 development
+
+-- You can add more sample data here as needed for testing
 
 -- ==========================================
 -- SAMPLE DOCUMENT CHUNKS
