@@ -47,8 +47,8 @@ async def check_rabbitmq() -> Dict[str, Any]:
 async def check_service(url: str, service_name: str) -> Dict[str, Any]:
     """Check microservice health"""
     try:
-        async with httpx.AsyncClient(timeout=2.0, follow_redirects=True) as client:
-            response = await asyncio.wait_for(client.get(f"{url}/health"), timeout=2.0)
+        async with httpx.AsyncClient(timeout=settings.HEALTH_CHECK_TIMEOUT, follow_redirects=True) as client:
+            response = await client.get(f"{url}/health")
             if response.status_code == 200:
                 return {"status": "healthy", "message": f"{service_name} is responding"}
             else:
@@ -79,12 +79,12 @@ async def health_check() -> Dict[str, Any]:
 
     # Check microservices
     services_to_check = [
-        ("http://doc-ingestor:8001", "doc-ingestor"),
-        ("http://deid:8002", "deid"),
-        ("http://indexer-semantique:8003", "indexer-semantique"),
-        ("http://llm-qa:8004", "llm-qa"),
-        ("http://synthese-comparative:8005", "synthese-comparative"),
-        ("http://audit-logger:8006", "audit-logger"),
+        ("http://host.docker.internal:8001", "doc-ingestor"),
+        ("http://host.docker.internal:8002", "deid"),
+        ("http://host.docker.internal:8003", "indexer-semantique"),
+        ("http://host.docker.internal:8004", "llm-qa"),
+        ("http://host.docker.internal:8005", "synthese-comparative"),
+        ("http://host.docker.internal:8006", "audit-logger"),
     ]
 
     # Run all service checks concurrently
