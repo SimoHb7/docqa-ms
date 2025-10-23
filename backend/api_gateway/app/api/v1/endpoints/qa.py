@@ -57,7 +57,7 @@ async def ask_question(
         async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for LLM
             try:
                 response = await client.post(
-                    f"{settings.LLM_QA_URL}/generate",
+                    f"{settings.LLM_QA_URL}/qa/ask",
                     json=qa_request
                 )
 
