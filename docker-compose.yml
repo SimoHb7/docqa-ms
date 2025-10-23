@@ -47,6 +47,12 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - DOC_INGESTOR_URL=http://doc-ingestor:8001
+      - DEID_URL=http://deid:8002
+      - INDEXER_SEMANTIQUE_URL=http://indexer-semantique:8003
+      - LLM_QA_URL=http://llm-qa:8004
+      - SYNTHESE_COMPARATIVE_URL=http://synthese-comparative:8005
+      - AUDIT_LOGGER_URL=http://audit-logger:8006
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,21 +66,23 @@ services:
   # ==========================================
 
   # Document Ingestor Service - EL-BELAIDI
-  # doc-ingestor:
-  #   build:
-  #     context: ./backend/doc_ingestor
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./data:/app/data:ro
-  #     - ./backend/shared:/app/shared:ro
+  doc-ingestor:
+    build:
+      context: ./backend/doc_ingestor
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data:ro
+      - ./backend/shared:/app/shared:ro
 
   # De-identification Service - LAHBARI
   # deid:
