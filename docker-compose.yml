@@ -111,22 +111,23 @@ services:
   #     - ./backend/shared:/app/shared:ro
 
   # LLM QA Service - LAHBARI
-  # llm-qa:
-  #   build:
-  #     context: ./backend/llm_qa
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #     - OLLAMA_BASE_URL=http://ollama:11434
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
-  #     - ./backend/llm_qa/config:/app/config:ro
+  llm-qa:
+    build:
+      context: ./backend/llm_qa
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - GROQ_API_KEY=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
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # ==========================================
   # PHASE 2 SERVICES (IMPLEMENT LATER)
