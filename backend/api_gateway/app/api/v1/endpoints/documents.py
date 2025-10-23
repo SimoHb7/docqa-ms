@@ -66,13 +66,20 @@ async def upload_document(
         # Send to document ingestor service
         async with httpx.AsyncClient() as client:
             try:
+                # Prepare multipart form data for file upload
+                files = {
+                    'file': (file.filename, file_content, file.content_type)
+                }
+                data = {}
+                if patient_id:
+                    data['patient_id'] = patient_id
+                if document_type:
+                    data['document_type'] = document_type
+
                 response = await client.post(
-                    f"{settings.DOC_INGESTOR_URL}/ingest",
-                    json={
-                        "document_id": document_id,
-                        "file_path": file_path,
-                        "metadata": metadata
-                    },
+                    f"{settings.DOC_INGESTOR_URL}/api/v1/documents/upload",
+                    files=files,
+                    data=data,
                     timeout=30.0
                 )
 
@@ -150,34 +157,29 @@ async def list_documents(
         if patient_id:
             params["patient_id"] = patient_id
 
-        # This would typically query the database directly
-        # For now, return mock data
-        documents = [
-            {
-                "id": "doc-1",
-                "filename": "sample_medical_report_1.pdf",
-                "status": "processed",
-                "upload_date": "2024-01-15T10:30:00Z",
-                "document_type": "medical_report",
-                "patient_id": "ANON_PAT_001"
-            },
-            {
-                "id": "doc-2",
-                "filename": "sample_lab_results_1.pdf",
-                "status": "processed",
-                "upload_date": "2024-01-20T14:15:00Z",
-                "document_type": "lab_results",
-                "patient_id": "ANON_PAT_002"
-            }
-        ]
+        # Forward request to document ingestor service
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.DOC_INGESTOR_URL}/api/v1/documents/",
+                params=params,
+                timeout=30.0
+            )
 
-        return {
-            "documents": documents,
-            "total": len(documents),
-            "limit": limit,
-            "offset": offset
-        }
+            if response.status_code != 200:
+                logger.error(
+                    "Document ingestor list failed",
+                    status_code=response.status_code,
+                    response=response.text
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to retrieve documents"
+                )
 
+            return response.json()
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to list documents", error=str(e))
         raise HTTPException(
@@ -192,26 +194,31 @@ async def get_document(document_id: str):
     Get detailed information about a specific document
     """
     try:
-        # This would query the database for document details
-        # For now, return mock data
-        document = {
-            "id": document_id,
-            "filename": "sample_medical_report_1.pdf",
-            "status": "processed",
-            "upload_date": "2024-01-15T10:30:00Z",
-            "document_type": "medical_report",
-            "patient_id": "ANON_PAT_001",
-            "file_size": 245760,
-            "processing_status": "completed",
-            "metadata": {
-                "author": "Dr. Smith",
-                "specialty": "cardiology",
-                "language": "fr"
-            }
-        }
+        # Forward request to document ingestor service
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.DOC_INGESTOR_URL}/api/v1/documents/{document_id}",
+                timeout=30.0
+            )
 
-        return document
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Document not found")
+            elif response.status_code != 200:
+                logger.error(
+                    "Document ingestor get failed",
+                    document_id=document_id,
+                    status_code=response.status_code,
+                    response=response.text
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to retrieve document"
+                )
 
+            return response.json()
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Failed to get document",
@@ -230,15 +237,31 @@ async def delete_document(document_id: str):
     Delete a document and all associated data
     """
     try:
-        # This would delete from database and file system
-        # For now, just return success
-        logger.info("Document deleted", document_id=document_id)
+        # Forward request to document ingestor service
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"{settings.DOC_INGESTOR_URL}/api/v1/documents/{document_id}",
+                timeout=30.0
+            )
 
-        return {
-            "message": "Document deleted successfully",
-            "document_id": document_id
-        }
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Document not found")
+            elif response.status_code != 200:
+                logger.error(
+                    "Document ingestor delete failed",
+                    document_id=document_id,
+                    status_code=response.status_code,
+                    response=response.text
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to delete document"
+                )
 
+            return response.json()
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete document",
