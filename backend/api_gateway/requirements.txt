@@ -1,0 +1,53 @@
+# API Gateway Requirements - SIMPLIFIED FOR STUDENT PROJECT
+# Core dependencies only for Phase 1
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Data Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database (PostgreSQL)
+psycopg2-binary==2.9.9
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# HTTP Client (for inter-service communication)
+httpx==0.25.2
+
+# File handling
+aiofiles==23.2.1
+
+# Message Queue
+pika==1.3.2
+
+# Logging
+structlog==23.2.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# CORS
+python-multipart==0.0.6
+
+# ==========================================
+# OPTIONAL - Uncomment when needed
+# ==========================================
+
+# Advanced monitoring (Phase 2)
+# sentry-sdk[fastapi]==1.38.0
+
+# Health checks (Phase 2)
+# fastapi-health==0.4.0
+
+# Caching (Phase 2)
+# redis==5.0.1
+
+# Testing (development only)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
