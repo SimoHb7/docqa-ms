@@ -47,8 +47,8 @@ async def check_rabbitmq() -> Dict[str, Any]:
 async def check_service(url: str, service_name: str) -> Dict[str, Any]:
     """Check microservice health"""
     try:
-        async with httpx.AsyncClient(timeout=2.0, follow_redirects=True) as client:
-            response = await asyncio.wait_for(client.get(f"{url}/health"), timeout=2.0)
+        async with httpx.AsyncClient(timeout=settings.HEALTH_CHECK_TIMEOUT, follow_redirects=True) as client:
+            response = await client.get(f"{url}/health")
             if response.status_code == 200:
                 return {"status": "healthy", "message": f"{service_name} is responding"}
             else:
