@@ -85,20 +85,22 @@ services:
       - ./backend/shared:/app/shared:ro
 
   # De-identification Service - LAHBARI
-  # deid:
-  #   build:
-  #     context: ./backend/deid
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  deid:
+    build:
+      context: ./backend/deid
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # Semantic Indexer Service - ELMANSOR
   # indexer-semantique:
