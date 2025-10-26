@@ -103,22 +103,22 @@ services:
       - ./backend/shared:/app/shared:ro
 
   # Semantic Indexer Service - ELMANSOR
-  # indexer-semantique:
-  #   build:
-  #     context: ./backend/indexer_semantique
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     chromadb:
-  #       condition: service_started
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  indexer-semantique:
+    build:
+      context: ./backend/indexer_semantique
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # LLM QA Service - LAHBARI
   llm-qa:
