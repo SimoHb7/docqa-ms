@@ -79,12 +79,12 @@ async def health_check() -> Dict[str, Any]:
 
     # Check microservices
     services_to_check = [
-        ("http://host.docker.internal:8001", "doc-ingestor"),
-        ("http://host.docker.internal:8002", "deid"),
-        ("http://host.docker.internal:8003", "indexer-semantique"),
-        ("http://host.docker.internal:8004", "llm-qa"),
-        ("http://host.docker.internal:8005", "synthese-comparative"),
-        ("http://host.docker.internal:8006", "audit-logger"),
+        ("http://doc-ingestor:8001", "doc-ingestor"),
+        ("http://deid:8002", "deid"),
+        ("http://indexer-semantique:8003", "indexer-semantique"),
+        ("http://llm-qa:8004", "llm-qa"),
+        ("http://synthese-comparative:8005", "synthese-comparative"),
+        ("http://audit-logger:8006", "audit-logger"),
     ]
 
     # Run all service checks concurrently
