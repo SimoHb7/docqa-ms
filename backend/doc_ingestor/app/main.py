@@ -13,6 +13,7 @@ from typing import Callable
 
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.core.database import db_manager
 from app.api.v1.api import api_router
 from app.core.health import router as health_router
 
@@ -27,11 +28,18 @@ async def lifespan(app: FastAPI):
     logger.info("Starting DocQA-MS Document Ingestor")
 
     # Startup tasks
+    try:
+        await db_manager.connect()
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.error("Failed to connect to database", error=str(e))
+    
     logger.info("Document Ingestor startup complete")
 
     yield
 
     # Shutdown tasks
+    await db_manager.disconnect()
     logger.info("Shutting down DocQA-MS Document Ingestor")
 
 

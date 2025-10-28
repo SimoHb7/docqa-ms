@@ -12,6 +12,7 @@ import json
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.database import db_manager
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -55,6 +56,7 @@ def publish_to_queue(document_id: str, file_path: str, metadata: dict) -> None:
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    document_id: Optional[str] = Form(None),  # Accept document_id from API Gateway
     patient_id: Optional[str] = Form(None),
     document_type: Optional[str] = Form(None)
 ):
@@ -80,8 +82,27 @@ async def upload_document(
                 detail=f"File too large. Maximum size: {settings.MAX_UPLOAD_SIZE_MB}MB"
             )
 
-        # Generate document ID
-        document_id = str(uuid.uuid4())
+        # Use provided document_id or generate new one
+        if not document_id:
+            document_id = str(uuid.uuid4())
+        
+        # Extract text content from file
+        file_extension = file.filename.split('.')[-1].lower()
+        text_content = ""
+        
+        try:
+            if file_extension == 'txt':
+                text_content = file_content.decode('utf-8')
+            elif file_extension == 'pdf':
+                # For now, store as is - PDF extraction can be added later
+                text_content = f"[PDF Document: {file.filename}]"
+            elif file_extension in ['doc', 'docx']:
+                text_content = f"[DOCX Document: {file.filename}]"
+            else:
+                text_content = f"[{file_extension.upper()} Document: {file.filename}]"
+        except Exception as e:
+            logger.warning("Failed to extract text content", error=str(e))
+            text_content = f"[Binary file: {file.filename}]"
 
         # Save file temporarily
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -96,11 +117,31 @@ async def upload_document(
             "content_type": file.content_type,
             "size": len(file_content),
             "patient_id": patient_id,
-            "document_type": document_type
+            "document_type": document_type,
+            "file_path": file_path
         }
+        
+        # Save document to database
+        try:
+            await db_manager.save_document(
+                document_id=document_id,
+                filename=file.filename,
+                file_type=file_extension,
+                content=text_content,
+                file_size=len(file_content),
+                metadata=metadata
+            )
+            logger.info("Document saved to database", document_id=document_id)
+        except Exception as e:
+            logger.error("Failed to save document to database", error=str(e))
+            # Continue anyway - document is still on disk
 
         # Publish to processing queue
-        publish_to_queue(document_id, file_path, metadata)
+        try:
+            publish_to_queue(document_id, file_path, metadata)
+        except Exception as e:
+            logger.error("Failed to publish to queue", error=str(e))
+            # Continue - document is saved to database
 
         logger.info(
             "Document uploaded successfully",

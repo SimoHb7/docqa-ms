@@ -11,6 +11,7 @@ import uuid
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
 from app.core.health import get_health_status
+from app.core.database import db_manager
 from app.api.v1.api import api_router
 
 # Setup logging
@@ -26,11 +27,19 @@ async def lifespan(app: FastAPI):
                version=settings.VERSION,
                host=settings.HOST,
                port=settings.PORT)
+    
+    # Initialize database connection
+    try:
+        await db_manager.connect()
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.error("Failed to connect to database", error=str(e))
 
     yield
 
     # Shutdown
     logger.info("Shutting down Semantic Indexer service")
+    await db_manager.disconnect()
 
 
 # Create FastAPI application

@@ -30,8 +30,25 @@ class Settings(BaseSettings):
 
     # File processing settings
     UPLOAD_DIR: str = "/app/uploads"
-    MAX_UPLOAD_SIZE_MB: int = 10
-    ALLOWED_FILE_TYPES: List[str] = ["pdf", "docx", "doc", "txt"]
+    MAX_UPLOAD_SIZE_MB: int = 50  # Increased from 10MB to 50MB
+    ALLOWED_FILE_TYPES: List[str] = [
+        # Primary document formats
+        "pdf", "docx", "doc", "txt",
+        # Medical standard formats
+        "hl7", "fhir", "json", "xml",
+        # Additional document formats
+        "rtf", "odt",
+        # Spreadsheets (for lab results, etc.)
+        "xlsx", "xls", "csv", "ods",
+        # Presentations
+        "pptx", "ppt", "odp",
+        # Images (for OCR)
+        "png", "jpg", "jpeg", "tiff", "tif", "bmp", "gif",
+        # Medical imaging formats
+        "dcm", "dicom",
+        # Other text formats
+        "html", "htm", "md", "markdown", "rst"
+    ]
 
     # OCR settings
     TESSERACT_CONFIG: str = "--oem 3 --psm 6"
