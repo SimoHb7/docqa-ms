@@ -1,5 +1,4 @@
 # DocQA-MS Docker Compose Configuration
-# Simplified for student project - only essential services for Phase 1
 
 services:
   # Database
@@ -143,21 +142,25 @@ services:
   # PHASE 2 SERVICES (IMPLEMENT LATER)
   # ==========================================
 
-  # Comparative Synthesis Service
-  # synthese-comparative:
-  #   build:
-  #     context: ./backend/synthese_comparative
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  # Comparative Synthesis Service EL - BELAIDI
+  synthese-comparative:
+    build:
+      context: ./backend/synthese_comparative
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Audit Logger Service
   # audit-logger:
