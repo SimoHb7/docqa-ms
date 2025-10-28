@@ -219,3 +219,128 @@ class CreditCardRecognizer(PatternRecognizer):
             context=context,
             supported_language=supported_language,
         )
+
+
+class MedicalIDRecognizer(PatternRecognizer):
+    """
+    Recognizer for medical identification numbers
+    """
+
+    PATTERNS = [
+        Pattern(
+            name="patient_id_format1",
+            regex=r"\b[A-Z]{2,3}\d{6,10}\b",
+            score=0.65,
+        ),
+        Pattern(
+            name="medical_record_num",
+            regex=r"\b(?:MRN|DPI|IPP)[\s\-:]?\d{6,12}\b",
+            score=0.85,
+        ),
+    ]
+
+    CONTEXT = [
+        "patient", "dossier", "identifiant", "numéro", "MRN", "DPI", "IPP",
+        "matricule", "hospitalisation", "admission"
+    ]
+
+    def __init__(
+        self,
+        patterns: Optional[List[Pattern]] = None,
+        context: Optional[List[str]] = None,
+        supported_language: str = "fr",
+        supported_entity: str = "MEDICAL_ID",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )
+
+
+class FrenchAddressRecognizer(PatternRecognizer):
+    """
+    Recognizer for French addresses
+    """
+
+    PATTERNS = [
+        Pattern(
+            name="french_street_address",
+            regex=r"\b\d{1,4}\s+(?:rue|avenue|boulevard|place|chemin|impasse|allée)\s+[A-Za-zÀ-ÿ\s\-\']+",
+            score=0.7,
+        ),
+    ]
+
+    CONTEXT = [
+        "adresse", "rue", "avenue", "boulevard", "domicile", "résidence",
+        "habite", "postal", "ville"
+    ]
+
+    def __init__(
+        self,
+        patterns: Optional[List[Pattern]] = None,
+        context: Optional[List[str]] = None,
+        supported_language: str = "fr",
+        supported_entity: str = "ADDRESS",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )
+
+
+class DoctorNameRecognizer(PatternRecognizer):
+    """
+    Recognizer for doctor/physician names with titles
+    Matches patterns like:
+    - Dr. Jean Dupont
+    - Dr Jean-Pierre Martin
+    - Docteur Marie Bernard
+    - Pr. Sophie Lefevre
+    - Professeur Jacques Dubois
+    """
+
+    PATTERNS = [
+        # Dr. or Dr followed by name (with or without hyphen, accent marks)
+        # Match title + first name + last name (stop at newline or specific chars)
+        Pattern(
+            name="doctor_with_title",
+            regex=r"\b(?:Dr\.?|Docteur|Pr\.?|Professeur)\s+[A-ZÀ-ÿ][a-zà-ÿ\-]+(?:\s+[A-ZÀ-ÿ][A-ZÀ-ÿ\-]+)\b",
+            score=0.9,
+        ),
+        # Médecin/Medecin followed by name
+        Pattern(
+            name="medecin_with_name",
+            regex=r"\b(?:Médecin|Medecin)\s*:\s*[A-ZÀ-ÿ][a-zà-ÿ\-]+(?:\s+[A-ZÀ-ÿ][A-ZÀ-ÿ\-]+)\b",
+            score=0.85,
+        ),
+    ]
+
+    CONTEXT = [
+        "medecin", "médecin", "docteur", "praticien", "cardiologue",
+        "chirurgien", "specialiste", "spécialiste", "consultation",
+        "prescripteur", "clinicien", "service"
+    ]
+
+    def __init__(
+        self,
+        patterns: Optional[List[Pattern]] = None,
+        context: Optional[List[str]] = None,
+        supported_language: str = "fr",
+        supported_entity: str = "PERSON",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )

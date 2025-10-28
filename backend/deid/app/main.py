@@ -89,7 +89,14 @@ def initialize_models():
             from presidio_analyzer import AnalyzerEngine
             from presidio_analyzer.nlp_engine import NlpEngineProvider
             from presidio_anonymizer import AnonymizerEngine
-            from app.custom_recognizers import FrenchPhoneRecognizer, FrenchSSNRecognizer, CreditCardRecognizer
+            from app.custom_recognizers import (
+                FrenchPhoneRecognizer, 
+                FrenchSSNRecognizer, 
+                CreditCardRecognizer,
+                MedicalIDRecognizer,
+                FrenchAddressRecognizer,
+                DoctorNameRecognizer
+            )
 
             # Configure NLP engine for French only
             nlp_configuration = {
@@ -106,6 +113,9 @@ def initialize_models():
             french_phone_recognizer = FrenchPhoneRecognizer()
             french_ssn_recognizer = FrenchSSNRecognizer()
             credit_card_recognizer = CreditCardRecognizer()
+            medical_id_recognizer = MedicalIDRecognizer()
+            address_recognizer = FrenchAddressRecognizer()
+            doctor_name_recognizer = DoctorNameRecognizer()
 
             # Initialize analyzer with French NLP support and custom recognizers
             analyzer = AnalyzerEngine(
@@ -118,6 +128,9 @@ def initialize_models():
             analyzer.registry.add_recognizer(french_phone_recognizer)
             analyzer.registry.add_recognizer(french_ssn_recognizer)
             analyzer.registry.add_recognizer(credit_card_recognizer)
+            analyzer.registry.add_recognizer(medical_id_recognizer)
+            analyzer.registry.add_recognizer(address_recognizer)
+            analyzer.registry.add_recognizer(doctor_name_recognizer)
             
             anonymizer = AnonymizerEngine()
 
@@ -162,6 +175,40 @@ async def anonymize_document(request: AnonymizationRequest):
                 language=request.language,
                 score_threshold=settings.DEID_CONFIDENCE_THRESHOLD
             )
+            
+            # Filter out false positives (field labels and common words)
+            # These are labels, not PII values
+            false_positive_patterns = [
+                "numero", "numéro", "nom", "prenom", "prénom",
+                "adresse", "telephone", "téléphone", "email", "date",
+                "patient", "medecin", "médecin",  # Removed "docteur", "dr" - handled by DoctorNameRecognizer
+                "diagnostic", "traitement", "prescription",
+                "naissance", "consultation", "examen",
+                # Medical terms that might be confused with locations
+                "hypertension", "diabete", "diabète", "cholesterol", "cholestérol",
+                "arterielle", "artérielle", "cardiaque", "pulmonaire",
+                "hepatique", "hépatique", "renale", "rénale", "cerebral", "cérébral",
+                "diagnostic", "pronostic", "therapeutique", "thérapeutique",
+                "clinique", "medical", "médical", "chirurgical"
+            ]
+            
+            filtered_results = []
+            for result in analyzer_results:
+                entity_text = request.content[result.start:result.end].lower().strip()
+                
+                # Skip if it's just a field label (short word matching our list)
+                if entity_text in false_positive_patterns:
+                    logger.info(f"Skipping false positive: {entity_text} (type: {result.entity_type})")
+                    continue
+                
+                # Skip very short entities (likely false positives) unless high confidence
+                if len(entity_text) < 3 and result.score < 0.9:
+                    continue
+                    
+                filtered_results.append(result)
+            
+            analyzer_results = filtered_results
+            
         except Exception as analyze_error:
             logger.error(f"Error during PII analysis: {analyze_error}")
             # If analysis fails, still return the original content with a warning

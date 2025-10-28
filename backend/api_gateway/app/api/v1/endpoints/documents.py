@@ -70,7 +70,9 @@ async def upload_document(
                 files = {
                     'file': (file.filename, file_content, file.content_type)
                 }
-                data = {}
+                data = {
+                    'document_id': document_id  # Pass the document ID
+                }
                 if patient_id:
                     data['patient_id'] = patient_id
                 if document_type:

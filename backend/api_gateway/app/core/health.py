@@ -77,14 +77,13 @@ async def health_check() -> Dict[str, Any]:
     # Check message queue
     health_status["checks"]["rabbitmq"] = await check_rabbitmq()
 
-    # Check microservices
+    # Check microservices (skip unimplemented services)
     services_to_check = [
         ("http://doc-ingestor:8001", "doc-ingestor"),
         ("http://deid:8002", "deid"),
         ("http://indexer-semantique:8003", "indexer-semantique"),
         ("http://llm-qa:8004", "llm-qa"),
-        ("http://synthese-comparative:8005", "synthese-comparative"),
-        ("http://audit-logger:8006", "audit-logger"),
+        # Skip synthese-comparative and audit-logger (not implemented yet)
     ]
 
     # Run all service checks concurrently

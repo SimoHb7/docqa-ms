@@ -10,6 +10,7 @@ from datetime import datetime
 from app.core.embeddings import embedding_service
 from app.core.chunker import text_chunker
 from app.core.vector_store import vector_store
+from app.core.database import db_manager
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -90,6 +91,23 @@ async def index_document(request: IndexRequest, background_tasks: BackgroundTask
         # Add to vector store
         logger.debug("Adding vectors to store", vector_count=len(embeddings))
         faiss_ids = vector_store.add_vectors(embeddings, chunk_ids, metadata_list)
+
+        # Save chunks to database
+        logger.debug("Saving chunks to database", chunk_count=len(request.chunks))
+        for chunk in request.chunks:
+            try:
+                await db_manager.save_document_chunk(
+                    document_id=request.document_id,
+                    chunk_index=chunk.index,
+                    content=chunk.content,
+                    metadata=chunk.metadata
+                )
+            except Exception as e:
+                logger.error("Failed to save chunk to database",
+                           document_id=request.document_id,
+                           chunk_index=chunk.index,
+                           error=str(e))
+                # Continue processing other chunks
 
         # Save index to disk (background task for performance)
         background_tasks.add_task(vector_store.save_index)

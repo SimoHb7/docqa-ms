@@ -9,6 +9,7 @@ import uuid
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.database import execute_query, execute_one
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -172,18 +173,45 @@ async def get_search_suggestions(
     limit: int = Query(10, description="Maximum number of suggestions", ge=1, le=50)
 ):
     """
-    Get search suggestions based on prefix
+    Get search suggestions based on prefix from actual search queries
     """
     try:
-        # This would typically query an index of common terms
-        # For now, return mock suggestions
-        suggestions = [
-            f"{prefix} traitement",
-            f"{prefix} diagnostic",
-            f"{prefix} résultats",
-            f"{prefix} antécédents",
-            f"{prefix} évolution"
-        ][:limit]
+        # Query database for common search terms that match the prefix
+        query = """
+            SELECT DISTINCT 
+                q.query_text,
+                COUNT(*) as frequency
+            FROM (
+                -- Get queries from QA interactions
+                SELECT question as query_text 
+                FROM qa_interactions 
+                WHERE question ILIKE $1 || '%'
+                
+                UNION ALL
+                
+                -- Get common medical terms from document content
+                SELECT unnest(regexp_split_to_array(lower(content), '\s+')) as query_text
+                FROM documents
+                WHERE content ILIKE '%' || $1 || '%'
+            ) q
+            WHERE length(q.query_text) >= 3
+            GROUP BY q.query_text
+            ORDER BY frequency DESC, q.query_text
+            LIMIT $2
+        """
+        
+        rows = await execute_query(query, prefix.lower(), limit)
+        
+        if rows:
+            suggestions = [row['query_text'] for row in rows]
+        else:
+            # Fallback to common medical term patterns if no matches
+            suggestions = [
+                f"{prefix} traitement",
+                f"{prefix} diagnostic",
+                f"{prefix} résultats",
+                f"{prefix} antécédents"
+            ][:limit]
 
         return {
             "suggestions": suggestions,
@@ -197,33 +225,67 @@ async def get_search_suggestions(
             prefix=prefix,
             error=str(e)
         )
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve suggestions"
-        )
+        # Return fallback suggestions on error
+        return {
+            "suggestions": [
+                f"{prefix} traitement",
+                f"{prefix} diagnostic",
+                f"{prefix} résultats"
+            ][:limit],
+            "prefix": prefix,
+            "limit": limit
+        }
 
 
 @router.get("/stats")
 async def get_search_statistics():
     """
-    Get search usage statistics
+    Get search usage statistics from database
     """
     try:
-        # This would aggregate search statistics from the database
-        # For now, return mock statistics
+        # Get total QA interactions (proxy for searches)
+        total_query = """
+            SELECT COUNT(*) as total_searches,
+                   COUNT(DISTINCT user_id) as unique_users,
+                   AVG(CASE WHEN context_documents IS NOT NULL 
+                       THEN array_length(context_documents, 1) 
+                       ELSE 0 END) as avg_results
+            FROM qa_interactions
+        """
+        total_stats = await execute_one(total_query)
+        
+        # Get popular queries
+        popular_query = """
+            SELECT question as query, COUNT(*) as count
+            FROM qa_interactions
+            GROUP BY question
+            ORDER BY count DESC
+            LIMIT 10
+        """
+        popular_rows = await execute_query(popular_query)
+        
+        # Get time-based trends
+        trends_query = """
+            SELECT 
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 END) as last_7_days,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as last_30_days,
+                COUNT(CASE WHEN created_at >= NOW() - INTERVAL '90 days' THEN 1 END) as last_90_days
+            FROM qa_interactions
+        """
+        trends = await execute_one(trends_query)
+        
         stats = {
-            "total_searches": 1250,
-            "unique_users": 45,
-            "average_results_per_search": 8.5,
+            "total_searches": total_stats['total_searches'] if total_stats else 0,
+            "unique_users": total_stats['unique_users'] if total_stats else 0,
+            "average_results_per_search": round(float(total_stats['avg_results']) if total_stats and total_stats['avg_results'] else 0, 1),
             "popular_queries": [
-                {"query": "hypertension", "count": 45},
-                {"query": "diabète", "count": 38},
-                {"query": "traitement anticoagulant", "count": 29}
-            ],
+                {"query": row['query'], "count": row['count']} 
+                for row in popular_rows
+            ] if popular_rows else [],
             "search_trends": {
-                "last_7_days": 156,
-                "last_30_days": 623,
-                "last_90_days": 1250
+                "last_7_days": trends['last_7_days'] if trends else 0,
+                "last_30_days": trends['last_30_days'] if trends else 0,
+                "last_90_days": trends['last_90_days'] if trends else 0
             }
         }
 
@@ -231,7 +293,15 @@ async def get_search_statistics():
 
     except Exception as e:
         logger.error("Failed to get search statistics", error=str(e))
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve search statistics"
-        )
+        # Return empty stats on error rather than failing
+        return {
+            "total_searches": 0,
+            "unique_users": 0,
+            "average_results_per_search": 0.0,
+            "popular_queries": [],
+            "search_trends": {
+                "last_7_days": 0,
+                "last_30_days": 0,
+                "last_90_days": 0
+            }
+        }
