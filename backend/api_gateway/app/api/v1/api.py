@@ -9,7 +9,9 @@ from app.api.v1.endpoints import (
     qa,
     synthesis,
     audit,
-    auth
+    auth,
+    deid,
+    indexer
 )
 
 api_router = APIRouter()
@@ -25,6 +27,18 @@ api_router.include_router(
     documents.router,
     prefix="/documents",
     tags=["documents"]
+)
+
+api_router.include_router(
+    deid.router,
+    prefix="/deid",
+    tags=["de-identification"]
+)
+
+api_router.include_router(
+    indexer.router,
+    prefix="/indexer",
+    tags=["semantic-indexing"]
 )
 
 api_router.include_router(

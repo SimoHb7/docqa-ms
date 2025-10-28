@@ -3,6 +3,7 @@ Search API endpoints for DocQA-MS API Gateway
 """
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 import httpx
 import uuid
 
@@ -13,21 +14,47 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
+class SearchFilter(BaseModel):
+    """Search filter model"""
+    document_type: Optional[str] = None
+    patient_id: Optional[str] = None
+    date_from: Optional[str] = None
+    date_to: Optional[str] = None
+    document_id: Optional[str] = None
+
+
+class SearchRequest(BaseModel):
+    """Semantic search request"""
+    query: str = Field(..., min_length=1, description="Search query in natural language")
+    filters: SearchFilter = Field(default_factory=SearchFilter)
+    limit: int = Field(20, ge=1, le=100, description="Maximum number of results")
+    threshold: float = Field(0.0, ge=0.0, le=1.0, description="Minimum similarity threshold")
+
+
 @router.post("/")
-async def search_documents(
-    query: str = Query(..., description="Search query in natural language"),
-    document_type: Optional[str] = Query(None, description="Filter by document type"),
-    patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
-    date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    limit: int = Query(20, description="Maximum number of results", ge=1, le=100)
-):
+async def search_documents(request: SearchRequest):
     """
     Perform semantic search across documents
+    
+    This endpoint performs semantic search using natural language queries
+    to find relevant document chunks based on meaning rather than keywords.
+    
+    **Parameters**:
+    - **query**: Natural language search query (minimum 3 characters)
+    - **filters**: Optional filters for document_type, patient_id, dates
+    - **limit**: Maximum number of results to return (1-100)
+    - **threshold**: Minimum similarity score threshold (0.0-1.0)
+    
+    **Returns**:
+    - **search_id**: Unique identifier for this search
+    - **query**: The search query
+    - **results**: List of matching document chunks with scores
+    - **total_results**: Number of results found
+    - **execution_time_ms**: Search execution time in milliseconds
     """
     try:
         # Validate query
-        if not query or len(query.strip()) < 3:
+        if not request.query or len(request.query.strip()) < 3:
             raise HTTPException(
                 status_code=400,
                 detail="Query must be at least 3 characters long"
@@ -36,39 +63,27 @@ async def search_documents(
         # Generate search ID
         search_id = str(uuid.uuid4())
 
-        # Build search filters
-        filters = {}
-        if document_type:
-            filters["document_type"] = document_type
-        if patient_id:
-            filters["patient_id"] = patient_id
-        if date_from or date_to:
-            filters["date_range"] = {
-                "start": date_from,
-                "end": date_to
-            }
-
-        # Prepare search request
-        search_request = {
-            "query": query.strip(),
-            "filters": filters,
-            "limit": limit,
-            "search_id": search_id
+        # Prepare search request for indexer service
+        indexer_request = {
+            "query": request.query.strip(),
+            "filters": request.filters.dict(exclude_none=True),
+            "limit": request.limit,
+            "threshold": request.threshold
         }
 
         logger.info(
             "Performing semantic search",
             search_id=search_id,
-            query=query,
-            filters=filters
+            query=request.query,
+            filters=request.filters.dict(exclude_none=True)
         )
 
         # Call semantic indexer service
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
-                    f"{settings.INDEXER_SEMANTIQUE_URL}/search",
-                    json=search_request
+                    f"{settings.INDEXER_SEMANTIQUE_URL}/api/v1/search/",
+                    json=indexer_request
                 )
 
                 if response.status_code != 200:
@@ -103,8 +118,8 @@ async def search_documents(
             "resource_type": "search",
             "resource_id": search_id,
             "action_details": {
-                "query": query,
-                "filters": filters,
+                "query": request.query,
+                "filters": request.filters.dict(exclude_none=True),
                 "result_count": len(search_results.get("results", []))
             }
         }
@@ -122,8 +137,8 @@ async def search_documents(
         # Format response
         result = {
             "search_id": search_id,
-            "query": query,
-            "filters": filters,
+            "query": request.query,
+            "filters": request.filters.dict(exclude_none=True),
             "results": search_results.get("results", []),
             "total_results": len(search_results.get("results", [])),
             "execution_time_ms": search_results.get("execution_time_ms", 0)
@@ -142,7 +157,7 @@ async def search_documents(
     except Exception as e:
         logger.error(
             "Unexpected error during search",
-            query=query,
+            query=request.query,
             error=str(e)
         )
         raise HTTPException(

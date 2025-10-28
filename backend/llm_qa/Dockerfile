@@ -1,4 +1,4 @@
-# DocQA-MS API Gateway Dockerfile - SIMPLIFIED
+# DocQA-MS LLM QA Service Dockerfile
 FROM python:3.11-slim
 
 # Set environment variables
@@ -8,17 +8,19 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies (minimal)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Download spaCy model (optional - skip if fails)
+RUN python -m spacy download fr_core_news_sm || echo "Warning: Could not download spaCy model, continuing..."
 
 # Copy application code
 COPY app/ ./app/
@@ -30,10 +32,10 @@ USER app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health')" || exit 1
+    CMD python -c "import httpx; httpx.get('http://localhost:8004/health')" || exit 1
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8004
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
