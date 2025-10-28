@@ -1,5 +1,5 @@
 """
-DocQA-MS API Gateway
+DocQA-MS Document Ingestor Service
 Main FastAPI application entry point
 """
 from contextlib import asynccontextmanager
@@ -24,21 +24,21 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context manager"""
-    logger.info("Starting DocQA-MS API Gateway")
+    logger.info("Starting DocQA-MS Document Ingestor")
 
     # Startup tasks
-    logger.info("API Gateway startup complete")
+    logger.info("Document Ingestor startup complete")
 
     yield
 
     # Shutdown tasks
-    logger.info("Shutting down DocQA-MS API Gateway")
+    logger.info("Shutting down DocQA-MS Document Ingestor")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="DocQA-MS API Gateway",
-    description="Medical Document Q&A System - API Gateway",
+    title="DocQA-MS Document Ingestor",
+    description="Document ingestion and processing service",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
@@ -149,11 +149,13 @@ app.include_router(health_router, prefix="/health", tags=["health"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+
+
 @app.get("/", tags=["root"])
 async def root():
     """Root endpoint"""
     return {
-        "message": "DocQA-MS API Gateway",
+        "message": "DocQA-MS Document Ingestor",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health/"
@@ -165,7 +167,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         reload=settings.DEBUG,
         log_level="info"
     )

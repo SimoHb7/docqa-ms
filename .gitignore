@@ -192,6 +192,11 @@ secrets/
 *.pem
 *.crt
 
+# API Keys (hardcoded for development - DO NOT COMMIT REAL KEYS)
+.env.local
+.env.development
+.env.production
+
 # Test data (sensitive)
 test_data/private/
 medical_records/private/

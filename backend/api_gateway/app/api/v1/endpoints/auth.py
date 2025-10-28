@@ -1,7 +1,7 @@
 """
 Authentication API endpoints for DocQA-MS API Gateway
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -196,6 +196,3 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """
     return current_user
 
-
-# Import datetime for token creation
-from datetime import datetime

@@ -1,5 +1,5 @@
 """
-Health check endpoints for DocQA-MS API Gateway
+Health check endpoints for DocQA-MS Document Ingestor
 """
 from datetime import datetime
 from typing import Dict, Any
@@ -44,20 +44,6 @@ async def check_rabbitmq() -> Dict[str, Any]:
         return {"status": "unhealthy", "message": f"RabbitMQ connection failed: {str(e)}"}
 
 
-async def check_service(url: str, service_name: str) -> Dict[str, Any]:
-    """Check microservice health"""
-    try:
-        async with httpx.AsyncClient(timeout=settings.HEALTH_CHECK_TIMEOUT, follow_redirects=True) as client:
-            response = await client.get(f"{url}/health")
-            if response.status_code == 200:
-                return {"status": "healthy", "message": f"{service_name} is responding"}
-            else:
-                return {"status": "unhealthy", "message": f"{service_name} returned status {response.status_code}"}
-    except Exception as e:
-        logger.error(f"{service_name} health check failed", error=str(e))
-        return {"status": "unhealthy", "message": f"{service_name} connection failed: {str(e)}"}
-
-
 @router.get("/")
 async def health_check() -> Dict[str, Any]:
     """
@@ -67,7 +53,7 @@ async def health_check() -> Dict[str, Any]:
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0",
-        "service": "api-gateway",
+        "service": "doc-ingestor",
         "checks": {}
     }
 
@@ -76,31 +62,6 @@ async def health_check() -> Dict[str, Any]:
 
     # Check message queue
     health_status["checks"]["rabbitmq"] = await check_rabbitmq()
-
-    # Check microservices
-    services_to_check = [
-        ("http://host.docker.internal:8001", "doc-ingestor"),
-        ("http://host.docker.internal:8002", "deid"),
-        ("http://host.docker.internal:8003", "indexer-semantique"),
-        ("http://host.docker.internal:8004", "llm-qa"),
-        ("http://host.docker.internal:8005", "synthese-comparative"),
-        ("http://host.docker.internal:8006", "audit-logger"),
-    ]
-
-    # Run all service checks concurrently
-    service_checks = await asyncio.gather(
-        *[check_service(url, name) for url, name in services_to_check],
-        return_exceptions=True
-    )
-
-    for i, (url, name) in enumerate(services_to_check):
-        if isinstance(service_checks[i], Exception):
-            health_status["checks"][name] = {
-                "status": "unhealthy",
-                "message": f"Health check failed: {str(service_checks[i])}"
-            }
-        else:
-            health_status["checks"][name] = service_checks[i]
 
     # Determine overall health status
     all_checks = list(health_status["checks"].values())
@@ -134,12 +95,12 @@ async def readiness_check() -> Dict[str, Any]:
         return {
             "status": "ready",
             "timestamp": datetime.utcnow().isoformat(),
-            "message": "API Gateway is ready to accept requests"
+            "message": "Document Ingestor is ready to accept requests"
         }
     else:
         raise HTTPException(
             status_code=503,
-            detail="API Gateway is not ready"
+            detail="Document Ingestor is not ready"
         )
 
 
@@ -151,5 +112,5 @@ async def liveness_check() -> Dict[str, Any]:
     return {
         "status": "alive",
         "timestamp": datetime.utcnow().isoformat(),
-        "message": "API Gateway is running"
+        "message": "Document Ingestor is running"
     }
