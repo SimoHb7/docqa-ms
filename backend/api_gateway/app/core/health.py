@@ -58,7 +58,7 @@ async def check_service(url: str, service_name: str) -> Dict[str, Any]:
         return {"status": "unhealthy", "message": f"{service_name} connection failed: {str(e)}"}
 
 
-@router.get("/")
+@router.get("/health")
 async def health_check() -> Dict[str, Any]:
     """
     Comprehensive health check for all system components
