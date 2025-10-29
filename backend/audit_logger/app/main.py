@@ -1,5 +1,5 @@
 """
-DocQA-MS API Gateway
+DocQA-MS Audit Logger
 Main FastAPI application entry point
 """
 from contextlib import asynccontextmanager
@@ -24,21 +24,21 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context manager"""
-    logger.info("Starting DocQA-MS API Gateway")
+    logger.info("Starting DocQA-MS Audit Logger")
 
     # Startup tasks
-    logger.info("API Gateway startup complete")
+    logger.info("Audit Logger startup complete")
 
     yield
 
     # Shutdown tasks
-    logger.info("Shutting down DocQA-MS API Gateway")
+    logger.info("Shutting down DocQA-MS Audit Logger")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="DocQA-MS API Gateway",
-    description="Medical Document Q&A System - API Gateway",
+    title="DocQA-MS Audit Logger",
+    description="Medical Document Q&A System - Audit Logger",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
@@ -145,7 +145,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
-app.include_router(health_router, prefix="", tags=["health"])
+app.include_router(health_router, prefix="/health", tags=["health"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
@@ -153,7 +153,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root():
     """Root endpoint"""
     return {
-        "message": "DocQA-MS API Gateway",
+        "message": "DocQA-MS Audit Logger",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health/"
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8006,
         reload=settings.DEBUG,
         log_level="info"
     )

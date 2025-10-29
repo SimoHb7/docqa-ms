@@ -1,5 +1,5 @@
 """
-Core configuration for DocQA-MS API Gateway
+Core configuration for DocQA-MS Audit Logger
 """
 from typing import List, Optional, Union
 from pydantic import AnyHttpUrl, field_validator, ValidationInfo
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
 
     # Server Configuration
-    SERVER_NAME: str = "DocQA-MS API Gateway"
+    SERVER_NAME: str = "DocQA-MS Audit Logger"
     SERVER_HOST: AnyHttpUrl = "http://localhost"
     DEBUG: bool = True
 
@@ -49,47 +49,9 @@ class Settings(BaseSettings):
     DATABASE_PASSWORD: str = "password"
     DATABASE_NAME: str = "docqa_db"
 
-    # Message Queue Configuration
-    RABBITMQ_URL: str = "amqp://admin:admin@localhost:5672/"
-    RABBITMQ_HOST: str = "localhost"
-    RABBITMQ_PORT: int = 5672
-    RABBITMQ_USER: str = "admin"
-    RABBITMQ_PASSWORD: str = "admin"
-    RABBITMQ_VHOST: str = "/"
-
-    # Service URLs (for routing to microservices)
-    DOC_INGESTOR_URL: str = "http://localhost:8001"
-    DEID_URL: str = "http://localhost:8002"
-    INDEXER_SEMANTIQUE_URL: str = "http://localhost:8003"
-    LLM_QA_URL: str = "http://localhost:8004"
-    SYNTHESE_COMPARATIVE_URL: str = "http://host.docker.internal:8005"
-    AUDIT_LOGGER_URL: str = "http://localhost:8006"
-
-    # File Upload Configuration
-    MAX_UPLOAD_SIZE_MB: int = 50
-    ALLOWED_FILE_TYPES: List[str] = ["pdf", "docx", "txt", "hl7", "fhir"]
-    UPLOAD_DIR: str = "./data/uploads"
-
-    # Security Configuration
-    ENCRYPTION_KEY: str = "your-32-character-encryption-key"
-    JWT_SECRET_KEY: str = "your-jwt-secret-key"
-    JWT_ALGORITHM: str = "HS256"
-
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"  # json or text
-
-    # Monitoring
-    SENTRY_DSN: Optional[str] = None
-    PROMETHEUS_PORT: int = 9090
-
-    # Cache Configuration (optional)
-    REDIS_URL: Optional[str] = "redis://localhost:6379"
-    CACHE_TTL: int = 3600  # 1 hour
-
-    # Rate Limiting
-    RATE_LIMIT_REQUESTS: int = 100
-    RATE_LIMIT_WINDOW: int = 60  # seconds
 
     # Health Check Configuration
     HEALTH_CHECK_TIMEOUT: int = 10  # seconds

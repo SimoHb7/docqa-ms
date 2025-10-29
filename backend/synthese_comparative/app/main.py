@@ -1,5 +1,5 @@
 """
-DocQA-MS API Gateway
+Synthese Comparative Service
 Main FastAPI application entry point
 """
 from contextlib import asynccontextmanager
@@ -24,21 +24,21 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context manager"""
-    logger.info("Starting DocQA-MS API Gateway")
+    logger.info("Starting Synthese Comparative Service")
 
     # Startup tasks
-    logger.info("API Gateway startup complete")
+    logger.info("Synthese Comparative Service startup complete")
 
     yield
 
     # Shutdown tasks
-    logger.info("Shutting down DocQA-MS API Gateway")
+    logger.info("Shutting down Synthese Comparative Service")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="DocQA-MS API Gateway",
-    description="Medical Document Q&A System - API Gateway",
+    title="Synthese Comparative Service",
+    description="Medical Document Synthesis and Comparison Service",
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url="/docs",
@@ -153,7 +153,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root():
     """Root endpoint"""
     return {
-        "message": "DocQA-MS API Gateway",
+        "message": "Synthese Comparative Service",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health/"
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8005,
         reload=settings.DEBUG,
         log_level="info"
     )
