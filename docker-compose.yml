@@ -163,20 +163,22 @@ services:
       - "host.docker.internal:host-gateway"
 
   # Audit Logger Service
-  # audit-logger:
-  #   build:
-  #     context: ./backend/audit_logger
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  audit-logger:
+    build:
+      context: ./backend/audit_logger
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # ==========================================
   # FRONTEND (IMPLEMENT LATER - PHASE 2)
