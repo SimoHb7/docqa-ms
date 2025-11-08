@@ -2,6 +2,7 @@
 DocQA-MS LLM QA Service
 Main FastAPI application for question-answering using Groq API
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -16,9 +17,33 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
+from app.core.database import db_manager
 
 # Setup logging
 setup_logging()
+
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    logger.info("Starting LLM Q&A service")
+    
+    # Initialize database connection
+    try:
+        await db_manager.connect()
+        logger.info("Database connection established")
+    except Exception as e:
+        logger.error("Failed to connect to database", error=str(e))
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down LLM Q&A service")
+    await db_manager.disconnect()
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -26,7 +51,8 @@ app = FastAPI(
     description="Question-Answering service using Groq API for medical documents",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -94,39 +120,68 @@ async def ask_question(request: QARequest):
     start_time = datetime.utcnow()
 
     try:
-        # Get relevant document chunks
-        context_chunks = []
-        if request.context_documents:
-            context_chunks = await get_document_chunks(request.context_documents)
+        # Step 1: Search for relevant document chunks using semantic search
+        relevant_chunks = await search_relevant_chunks(
+            request.question, 
+            document_ids=request.context_documents if request.context_documents else None,
+            limit=5
+        )
+        
+        if not relevant_chunks:
+            logger.warning("No relevant document chunks found for question")
+            raise HTTPException(
+                status_code=404,
+                detail="No relevant documents found to answer this question. Please ensure documents are indexed."
+            )
 
-        # Prepare context for LLM
-        context_text = prepare_context(context_chunks)
+        # Step 2: Prepare context for LLM
+        context_text = prepare_context(relevant_chunks)
 
-        # Create prompt for medical Q&A
+        # Step 3: Create prompt for medical Q&A
         prompt = create_medical_qa_prompt(request.question, context_text)
 
-        # Call Groq API with fallback models
+        # Step 4: Call Groq API with fallback models (updated to current models)
         models_to_try = [
-            "llama3-8b-8192",
-            "gemma2-9b-it",
-            "mixtral-8x7b-32768",
-            "llama3-70b-8192"
+            "llama-3.3-70b-versatile",  # Latest Llama 3.3
+            "llama-3.1-8b-instant",     # Fast Llama 3.1
+            "mixtral-8x7b-32768",       # Mixtral fallback
+            "gemma2-9b-it"              # Gemma fallback
         ]
 
         response = None
         last_error = None
+        model_used = None
 
         for model in models_to_try:
             try:
                 response = groq_client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": "You are a medical assistant helping healthcare professionals analyze clinical documents. Provide accurate, evidence-based answers with references to the source documents."},
+                        {
+                            "role": "system", 
+                            "content": """Tu es un assistant médical IA hautement spécialisé, conçu pour aider les professionnels de santé dans l'analyse de documents cliniques. 
+
+Tes compétences clés:
+- Analyse approfondie de dossiers médicaux en français
+- Extraction d'informations cliniques précises
+- Synthèse de données médicales complexes
+- Respect absolu de la confidentialité et de l'éthique médicale
+
+Tes principes fondamentaux:
+1. PRÉCISION: Base tes réponses exclusivement sur les documents fournis
+2. TRAÇABILITÉ: Cite toujours tes sources avec les IDs de documents
+3. HONNÊTETÉ: Admets clairement quand l'information n'est pas disponible
+4. CLARTÉ: Structure tes réponses de manière professionnelle et lisible
+5. SÉCURITÉ: Ne donne jamais de conseils médicaux non fondés sur les documents
+
+Tu travailles avec des documents qui peuvent contenir des données anonymisées (marquées <PERSON>, <LOCATION>, <DATE_TIME>, etc.) pour protéger la vie privée des patients."""
+                        },
                         {"role": "user", "content": prompt}
                     ],
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
                 )
+                model_used = model
                 logger.info(f"Successfully used model: {model}")
                 break
             except Exception as e:
@@ -135,15 +190,11 @@ async def ask_question(request: QARequest):
                 continue
 
         if response is None:
-            # Fallback: return a mock response for development
-            logger.warning(f"All Groq models failed, using mock response. Last error: {last_error}")
-            mock_answer = "D'après les documents cliniques analysés, le patient suit un traitement par irbesartan 150mg une fois par jour pour son hypertension artérielle. La tension artérielle est bien contrôlée à 140/85 mmHg."
-            response = type('MockResponse', (), {
-                'choices': [type('Choice', (), {
-                    'message': type('Message', (), {'content': mock_answer})()
-                })()],
-                'usage': type('Usage', (), {'total_tokens': 150})()
-            })()
+            logger.error(f"All Groq models failed. Last error: {last_error}")
+            raise HTTPException(
+                status_code=503,
+                detail=f"LLM service unavailable. Please check Groq API configuration. Error: {last_error}"
+            )
 
         answer = response.choices[0].message.content
         tokens_used = response.usage.total_tokens
@@ -152,9 +203,9 @@ async def ask_question(request: QARequest):
         execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
         # Extract sources from context
-        sources = extract_sources(context_chunks, answer)
+        sources = extract_sources(relevant_chunks, answer)
 
-        # Calculate confidence score (simplified)
+        # Calculate confidence score
         confidence_score = calculate_confidence_score(answer, context_text)
 
         # Save Q&A interaction to database
@@ -173,10 +224,12 @@ async def ask_question(request: QARequest):
             sources=sources,
             confidence_score=confidence_score,
             execution_time_ms=execution_time,
-            model_used=settings.GROQ_MODEL,
+            model_used=model_used or "unknown",
             tokens_used=tokens_used
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Error processing Q&A request", error=str(e))
         raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
@@ -217,6 +270,78 @@ async def get_document_chunks(document_ids: List[str]) -> List[DocumentChunk]:
         logger.error("Error retrieving document chunks", error=str(e))
         return []
 
+
+async def search_relevant_chunks(question: str, document_ids: List[str] = None, limit: int = 5) -> List[DocumentChunk]:
+    """Search for relevant document chunks using semantic search"""
+    try:
+        logger.info(f"Searching for relevant chunks for question: {question[:100]}")
+        
+        # When filtering by documents, increase search limit to ensure we get results from all selected docs
+        # (FAISS returns results before filtering, so we need to over-fetch)
+        search_limit = limit * 3 if document_ids and len(document_ids) > 1 else limit
+        
+        # Prepare search request payload
+        search_payload = {
+            "query": question,
+            "limit": search_limit,
+            "threshold": 0.3,  # Minimum relevance score
+            "filters": {}
+        }
+        
+        # Add document_ids filter if specified
+        if document_ids and len(document_ids) > 0:
+            search_payload["filters"]["document_ids"] = document_ids
+            logger.info(f"Filtering search to {len(document_ids)} specific documents")
+        
+        # Call the indexer's search endpoint
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            search_response = await client.post(
+                f"{settings.INDEXER_URL}/api/v1/search/",
+                json=search_payload
+            )
+            
+            if search_response.status_code != 200:
+                logger.error(f"Search service failed with status {search_response.status_code}")
+                return []
+            
+            search_results = search_response.json()
+            results = search_results.get("results", [])
+            
+            # Log what the search API returned
+            logger.info(f"Search API returned {len(results)} results")
+            if results:
+                doc_ids = [r.get("document_id", "unknown") for r in results]
+                logger.info(f"Document IDs in search results: {doc_ids}")
+            
+            if not results:
+                logger.warning("No search results found")
+                return []
+            
+            # Convert search results to DocumentChunk objects
+            chunks = []
+            for result in results:
+                chunks.append(DocumentChunk(
+                    id=result.get("chunk_id", str(uuid.uuid4())),
+                    document_id=result.get("document_id", "unknown"),
+                    content=result.get("text", result.get("content", "")),
+                    metadata={
+                        "score": result.get("score", 0.0),
+                        "chunk_index": result.get("chunk_index", 0),
+                        "filename": result.get("filename", None),  # Preserve filename from search results
+                        "file_type": result.get("file_type", None)  # Preserve file type
+                    }
+                ))
+            
+            logger.info(f"Found {len(chunks)} relevant chunks")
+            return chunks
+            
+    except httpx.RequestError as e:
+        logger.error(f"Failed to connect to search service: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Error searching for relevant chunks: {e}")
+        return []
+
 def prepare_context(chunks: List[DocumentChunk]) -> str:
     """Prepare context text from document chunks"""
     if not chunks:
@@ -229,38 +354,86 @@ def prepare_context(chunks: List[DocumentChunk]) -> str:
     return "\n\n".join(context_parts)
 
 def create_medical_qa_prompt(question: str, context: str) -> str:
-    """Create a medical Q&A prompt"""
-    return f"""
-Based on the following medical document excerpts, please answer the question accurately and provide evidence from the documents.
+    """Create an advanced medical Q&A prompt with sophisticated prompt engineering"""
+    return f"""Tu es un assistant médical expert spécialisé dans l'analyse de documents cliniques français. Ta mission est de fournir des réponses précises, factuelles et basées uniquement sur les documents fournis.
 
-CONTEXT DOCUMENTS:
+## DOCUMENTS MÉDICAUX DISPONIBLES
 {context}
 
-QUESTION: {question}
+## QUESTION DU PROFESSIONNEL DE SANTÉ
+{question}
 
-Please provide:
-1. A clear, direct answer
-2. References to specific parts of the documents that support your answer
-3. Any relevant medical context or considerations
-4. Confidence level in your answer
+## INSTRUCTIONS DÉTAILLÉES POUR LA RÉPONSE
 
-Answer in French as the medical documents are in French.
-"""
+### 1. ANALYSE ET COMPRÉHENSION
+- Lis attentivement tous les documents fournis
+- Identifie les informations pertinentes pour répondre à la question
+- Note les contradictions ou informations manquantes
+
+### 2. STRUCTURE DE LA RÉPONSE
+Ta réponse doit suivre ce format structuré :
+
+**Réponse Directe:**
+- Commence par une réponse claire et concise (2-3 phrases maximum)
+- Utilise un langage médical approprié mais compréhensible
+
+**Preuves Documentaires:**
+- Cite les passages spécifiques des documents qui soutiennent ta réponse
+- Indique l'ID du document pour chaque citation
+- Utilise des citations directes quand c'est pertinent
+
+**Contexte Clinique:**
+- Fournis le contexte médical additionnel si nécessaire
+- Explique les implications cliniques
+- Mentionne les facteurs importants à considérer
+
+**Niveau de Confiance:**
+- Indique ton niveau de confiance : Élevé / Moyen / Faible
+- Justifie ce niveau basé sur la qualité et quantité d'informations disponibles
+
+### 3. RÈGLES STRICTES À RESPECTER
+✓ Réponds UNIQUEMENT avec les informations des documents fournis
+✓ Si l'information n'est pas dans les documents, dis clairement "L'information n'est pas disponible dans les documents fournis"
+✓ Ne fais JAMAIS d'inventions ou d'hypothèses non fondées
+✓ Cite systématiquement tes sources (ID du document)
+✓ Utilise la terminologie médicale française correcte
+✓ Sois précis avec les valeurs numériques, dates, et dosages
+✓ Identifie les informations anonymisées (ex: <PERSON>, <DATE_TIME>) et mentionne que certaines données sont masquées pour confidentialité
+
+✗ N'invente pas d'informations
+✗ Ne fais pas de diagnostics ou recommandations thérapeutiques non présents dans les documents
+✗ N'utilise pas de connaissances externes non vérifiables dans les documents
+✗ Ne donne pas d'avis personnel ou de conseil médical générique
+
+### 4. GESTION DES CAS PARTICULIERS
+- **Information partielle**: Si seulement une partie de la réponse est disponible, indique clairement ce qui est connu et ce qui manque
+- **Informations contradictoires**: Signale les contradictions et présente les deux versions avec leurs sources
+- **Données anonymisées**: Mentionne que certaines données personnelles sont masquées (ex: noms, dates)
+- **Absence d'information**: Si aucune information pertinente n'est trouvée, suggère quels types de documents seraient nécessaires
+
+### 5. QUALITÉ DE LA RÉPONSE
+- Sois factuel et objectif
+- Utilise des bullet points pour la clarté
+- Inclus les unités de mesure appropriées
+- Vérifie la cohérence temporelle des informations
+- Priorise les informations les plus récentes si dates disponibles
+
+Maintenant, réponds à la question en suivant rigoureusement ces instructions."""
 
 def extract_sources(chunks: List[DocumentChunk], answer: str) -> List[Dict[str, Any]]:
     """Extract source references from answer"""
     sources = []
     for chunk in chunks:
-        # Simple relevance check - in production, use more sophisticated methods
-        if any(keyword in chunk.content.lower() for keyword in ["traitement", "diagnostic", "patient", "médical"]):
-            sources.append({
-                "document_id": chunk.document_id,
-                "chunk_id": chunk.id,
-                "relevance_score": 0.8,  # Simplified scoring
-                "excerpt": chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
-            })
+        # All chunks that were used for search are relevant sources
+        sources.append({
+            "document_id": chunk.document_id,
+            "chunk_id": chunk.id,
+            "relevance_score": chunk.metadata.get('score', 0.8) if chunk.metadata else 0.8,
+            "content": chunk.content,  # Changed from excerpt to content
+            "filename": chunk.metadata.get('filename', f"Document {chunk.document_id[:8]}")  # Add filename if available
+        })
 
-    return sources[:3]  # Return top 3 sources
+    return sources  # Return all sources that were found
 
 def calculate_confidence_score(answer: str, context: str) -> float:
     """Calculate confidence score (simplified)"""
@@ -290,39 +463,28 @@ async def save_qa_interaction(
 ):
     """Save Q&A interaction to database"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Extract document IDs from sources
+        context_documents = []
+        for source in sources:
+            if 'document_id' in source and source['document_id'] not in context_documents:
+                context_documents.append(source['document_id'])
+        
+        # Use default system user for now (until Auth0 integration is fully implemented)
+        default_user_id = "00000000-0000-0000-0000-000000000001"
+        
+        # Save to database using db_manager
+        interaction_id = await db_manager.save_qa_interaction(
+            user_id=default_user_id,
+            question=question,
+            answer=answer,
+            context_documents=context_documents,
+            confidence_score=confidence_score,
+            response_time_ms=execution_time,
+            llm_model=settings.GROQ_MODEL,
+            sources=sources
+        )
 
-        # Create session if not provided
-        if not session_id:
-            session_id = str(uuid.uuid4())
-            cursor.execute(
-                "INSERT INTO qa_sessions (id, user_id, session_title) VALUES (%s, %s, %s)",
-                (session_id, "anonymous", f"Q&A Session {datetime.utcnow().date()}")
-            )
-
-        # Insert Q&A interaction
-        cursor.execute("""
-            INSERT INTO qa_interactions (
-                session_id, user_query, llm_response, response_sources,
-                confidence_score, execution_time_ms, llm_model, tokens_used
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            session_id,
-            question,
-            answer,
-            json.dumps(sources),
-            confidence_score,
-            execution_time,
-            settings.GROQ_MODEL,
-            tokens_used
-        ))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-
-        logger.info("Q&A interaction saved", session_id=session_id)
+        logger.info("Q&A interaction saved", interaction_id=interaction_id, session_id=session_id)
 
     except Exception as e:
         logger.error("Error saving Q&A interaction", error=str(e))

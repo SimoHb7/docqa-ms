@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Message Queue Configuration
     RABBITMQ_URL: str = "amqp://admin:admin@rabbitmq:5672/"
 
+    # External Services
+    INDEXER_URL: str = "http://indexer-semantique:8003"
+
     # Service Configuration
     SERVICE_HOST: str = "0.0.0.0"
     SERVICE_PORT: int = 8004
