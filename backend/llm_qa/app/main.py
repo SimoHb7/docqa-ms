@@ -121,7 +121,11 @@ async def ask_question(request: QARequest):
 
     try:
         # Step 1: Search for relevant document chunks using semantic search
-        relevant_chunks = await search_relevant_chunks(request.question, limit=5)
+        relevant_chunks = await search_relevant_chunks(
+            request.question, 
+            document_ids=request.context_documents if request.context_documents else None,
+            limit=5
+        )
         
         if not relevant_chunks:
             logger.warning("No relevant document chunks found for question")
@@ -267,20 +271,33 @@ async def get_document_chunks(document_ids: List[str]) -> List[DocumentChunk]:
         return []
 
 
-async def search_relevant_chunks(question: str, limit: int = 5) -> List[DocumentChunk]:
+async def search_relevant_chunks(question: str, document_ids: List[str] = None, limit: int = 5) -> List[DocumentChunk]:
     """Search for relevant document chunks using semantic search"""
     try:
         logger.info(f"Searching for relevant chunks for question: {question[:100]}")
+        
+        # When filtering by documents, increase search limit to ensure we get results from all selected docs
+        # (FAISS returns results before filtering, so we need to over-fetch)
+        search_limit = limit * 3 if document_ids and len(document_ids) > 1 else limit
+        
+        # Prepare search request payload
+        search_payload = {
+            "query": question,
+            "limit": search_limit,
+            "threshold": 0.3,  # Minimum relevance score
+            "filters": {}
+        }
+        
+        # Add document_ids filter if specified
+        if document_ids and len(document_ids) > 0:
+            search_payload["filters"]["document_ids"] = document_ids
+            logger.info(f"Filtering search to {len(document_ids)} specific documents")
         
         # Call the indexer's search endpoint
         async with httpx.AsyncClient(timeout=30.0) as client:
             search_response = await client.post(
                 f"{settings.INDEXER_URL}/api/v1/search/",
-                json={
-                    "query": question,
-                    "limit": limit,
-                    "threshold": 0.3  # Minimum relevance score
-                }
+                json=search_payload
             )
             
             if search_response.status_code != 200:
@@ -289,6 +306,12 @@ async def search_relevant_chunks(question: str, limit: int = 5) -> List[Document
             
             search_results = search_response.json()
             results = search_results.get("results", [])
+            
+            # Log what the search API returned
+            logger.info(f"Search API returned {len(results)} results")
+            if results:
+                doc_ids = [r.get("document_id", "unknown") for r in results]
+                logger.info(f"Document IDs in search results: {doc_ids}")
             
             if not results:
                 logger.warning("No search results found")
@@ -303,7 +326,9 @@ async def search_relevant_chunks(question: str, limit: int = 5) -> List[Document
                     content=result.get("text", result.get("content", "")),
                     metadata={
                         "score": result.get("score", 0.0),
-                        "chunk_index": result.get("chunk_index", 0)
+                        "chunk_index": result.get("chunk_index", 0),
+                        "filename": result.get("filename", None),  # Preserve filename from search results
+                        "file_type": result.get("file_type", None)  # Preserve file type
                     }
                 ))
             
@@ -399,16 +424,16 @@ def extract_sources(chunks: List[DocumentChunk], answer: str) -> List[Dict[str, 
     """Extract source references from answer"""
     sources = []
     for chunk in chunks:
-        # Simple relevance check - in production, use more sophisticated methods
-        if any(keyword in chunk.content.lower() for keyword in ["traitement", "diagnostic", "patient", "médical"]):
-            sources.append({
-                "document_id": chunk.document_id,
-                "chunk_id": chunk.id,
-                "relevance_score": 0.8,  # Simplified scoring
-                "excerpt": chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content
-            })
+        # All chunks that were used for search are relevant sources
+        sources.append({
+            "document_id": chunk.document_id,
+            "chunk_id": chunk.id,
+            "relevance_score": chunk.metadata.get('score', 0.8) if chunk.metadata else 0.8,
+            "content": chunk.content,  # Changed from excerpt to content
+            "filename": chunk.metadata.get('filename', f"Document {chunk.document_id[:8]}")  # Add filename if available
+        })
 
-    return sources[:3]  # Return top 3 sources
+    return sources  # Return all sources that were found
 
 def calculate_confidence_score(answer: str, context: str) -> float:
     """Calculate confidence score (simplified)"""
@@ -444,9 +469,12 @@ async def save_qa_interaction(
             if 'document_id' in source and source['document_id'] not in context_documents:
                 context_documents.append(source['document_id'])
         
+        # Use default system user for now (until Auth0 integration is fully implemented)
+        default_user_id = "00000000-0000-0000-0000-000000000001"
+        
         # Save to database using db_manager
         interaction_id = await db_manager.save_qa_interaction(
-            user_id=session_id or "anonymous",
+            user_id=default_user_id,
             question=question,
             answer=answer,
             context_documents=context_documents,

@@ -11,7 +11,8 @@ from app.api.v1.endpoints import (
     audit,
     auth,
     deid,
-    indexer
+    indexer,
+    dashboard
 )
 
 api_router = APIRouter()
@@ -63,4 +64,10 @@ api_router.include_router(
     audit.router,
     prefix="/audit",
     tags=["audit"]
+)
+
+api_router.include_router(
+    dashboard.router,
+    prefix="/dashboard",
+    tags=["dashboard"]
 )

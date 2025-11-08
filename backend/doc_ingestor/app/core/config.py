@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Message queue settings
     RABBITMQ_URL: str = "amqp://admin:admin@localhost:5672/"
 
+    # Service URLs
+    DEID_SERVICE_URL: str = "http://deid:8002"
+
     # File processing settings
     UPLOAD_DIR: str = "/app/uploads"
     MAX_UPLOAD_SIZE_MB: int = 50  # Increased from 10MB to 50MB
@@ -36,18 +39,10 @@ class Settings(BaseSettings):
         "pdf", "docx", "doc", "txt",
         # Medical standard formats
         "hl7", "fhir", "json", "xml",
-        # Additional document formats
-        "rtf", "odt",
         # Spreadsheets (for lab results, etc.)
-        "xlsx", "xls", "csv", "ods",
-        # Presentations
-        "pptx", "ppt", "odp",
-        # Images (for OCR)
-        "png", "jpg", "jpeg", "tiff", "tif", "bmp", "gif",
+        "xlsx", "xls", "csv", 
         # Medical imaging formats
         "dcm", "dicom",
-        # Other text formats
-        "html", "htm", "md", "markdown", "rst"
     ]
 
     # OCR settings

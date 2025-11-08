@@ -12,6 +12,7 @@ from app.core.chunker import text_chunker
 from app.core.vector_store import vector_store
 from app.core.database import db_manager
 from app.core.logging import get_logger
+from app.core.sync import sync_index_with_database
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -109,8 +110,13 @@ async def index_document(request: IndexRequest, background_tasks: BackgroundTask
                            error=str(e))
                 # Continue processing other chunks
 
-        # Save index to disk (background task for performance)
-        background_tasks.add_task(vector_store.save_index)
+        # Save index to disk immediately to ensure persistence
+        try:
+            vector_store.save_index()
+            logger.info("FAISS index saved after adding document", document_id=request.document_id)
+        except Exception as e:
+            logger.error("Failed to save FAISS index", document_id=request.document_id, error=str(e))
+            # Don't fail the request, index is in memory
 
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
 
@@ -223,3 +229,31 @@ async def delete_document_index(document_id: str, background_tasks: BackgroundTa
     except Exception as e:
         logger.error("Document index deletion failed", document_id=document_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Deletion failed: {str(e)}")
+
+
+@router.post("/rebuild-from-db")
+async def rebuild_index_from_database():
+    """
+    Rebuild FAISS index from all embeddings in the database
+    
+    This endpoint synchronizes the in-memory FAISS index with all 
+    document embeddings stored in the database. Useful when the 
+    FAISS index file is outdated or corrupted.
+    """
+    try:
+        logger.info("Manual FAISS index rebuild requested")
+        
+        # Use the centralized sync function with force=True
+        result = await sync_index_with_database(force=True)
+        
+        return {
+            "status": result["status"],
+            "vectors_loaded": result["faiss_vectors"],
+            "documents_processed": result.get("documents_processed", 0),
+            "processing_time_ms": result["processing_time_ms"],
+            "message": f"Successfully rebuilt index with {result['faiss_vectors']} vectors"
+        }
+        
+    except Exception as e:
+        logger.error("Failed to rebuild FAISS index from database", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Rebuild failed: {str(e)}")
