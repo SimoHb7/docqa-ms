@@ -22,6 +22,7 @@ class SearchFilter(BaseModel):
     date_from: Optional[str] = None
     date_to: Optional[str] = None
     document_id: Optional[str] = None
+    document_ids: Optional[List[str]] = None  # Support multiple document IDs
 
 
 class SearchRequest(BaseModel):
@@ -38,6 +39,9 @@ class SearchResult(BaseModel):
     document_id: str
     score: float = Field(..., ge=0.0, le=1.0)
     content: str
+    filename: Optional[str] = None  # Add filename at top level
+    file_type: Optional[str] = None  # Add file_type at top level
+    chunk_index: Optional[int] = None  # Add chunk_index at top level
     metadata: Dict[str, Any] = {}
 
 
@@ -69,21 +73,34 @@ async def semantic_search(request: SearchRequest):
         # Generate embedding for the query
         query_embedding = embedding_service.generate_single_embedding(request.query)
 
+        # When filtering by specific documents, search ALL documents to ensure we get results from selected ones
+        search_limit = request.limit
+        search_threshold = request.threshold
+        
+        if request.filters.document_ids and len(request.filters.document_ids) >= 1:
+            # Search all documents in index to ensure selected documents are found
+            search_limit = 1000  # High limit to get all possible results
+            search_threshold = 0.0  # Disable threshold when filtering by specific documents
+            logger.info(f"Increasing search limit from {request.limit} to {search_limit} and disabling threshold for {len(request.filters.document_ids)} document filter")
+
         # Perform vector search
         search_results = vector_store.search(
             query_vector=query_embedding,
-            k=request.limit,
-            threshold=request.threshold
+            k=search_limit,
+            threshold=search_threshold
         )
+
+        logger.info(f"FAISS returned {len(search_results)} results before filtering")
 
         # Convert to response format with deduplication
         results = []
         seen_chunks = set()  # Track unique chunk_ids to prevent duplicates
         
         for chunk_id, score, metadata in search_results:
+            logger.info(f"Processing chunk: {chunk_id}, score: {score}")
             # Skip if we've already seen this chunk
             if chunk_id in seen_chunks:
-                logger.debug("Skipping duplicate chunk", chunk_id=chunk_id)
+                logger.info(f"Skipping duplicate chunk: {chunk_id}")
                 continue
             
             # Extract document_id from chunk_id (format: "doc_id_chunk_index")
@@ -91,17 +108,29 @@ async def semantic_search(request: SearchRequest):
 
             # Apply filters if specified
             if request.filters.document_type and metadata.get('document_type') != request.filters.document_type:
+                logger.info(f"Filtered out {chunk_id}: document_type mismatch")
                 continue
             if request.filters.patient_id and metadata.get('patient_id') != request.filters.patient_id:
+                logger.info(f"Filtered out {chunk_id}: patient_id mismatch")
                 continue
             if request.filters.document_id and document_id != request.filters.document_id:
+                logger.info(f"Filtered out {chunk_id}: single document_id mismatch")
+                continue
+            # Filter by multiple document IDs if specified
+            if request.filters.document_ids and document_id not in request.filters.document_ids:
+                logger.info(f"Filtered out {chunk_id}: document_id {document_id} NOT in filter list {request.filters.document_ids}")
                 continue
 
+            logger.info(f"Including result: chunk_id={chunk_id}, doc_id={document_id}, score={score}")
+            
             result = SearchResult(
                 chunk_id=chunk_id,
                 document_id=document_id,
                 score=round(float(score), 4),
                 content=metadata.get('content', ''),  # Content might be stored in metadata
+                filename=metadata.get('filename'),  # Extract filename from metadata
+                file_type=metadata.get('file_type'),  # Extract file_type from metadata
+                chunk_index=metadata.get('chunk_index'),  # Extract chunk_index
                 metadata=metadata
             )
             results.append(result)

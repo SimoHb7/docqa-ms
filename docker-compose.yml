@@ -111,6 +111,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - TRANSFORMERS_CACHE=/app/model_cache
+      - HF_HOME=/app/model_cache
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,6 +120,8 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/shared:/app/shared:ro
+      - ./data/vectors:/app/data/vectors  # Persist FAISS index
+      - indexer_model_cache:/app/model_cache  # Persist embedding models
 
   # LLM QA Service - LAHBARI
   llm-qa:
@@ -211,3 +215,4 @@ volumes:
   postgres_data:
   rabbitmq_data:
   ollama_data:
+  indexer_model_cache:  # Cache for sentence-transformers models

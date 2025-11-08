@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # DeID Configuration
     DEID_MODEL_PATH: str = Field(default="/app/models", env="DEID_MODEL_PATH")
     DEID_LANGUAGE: str = Field(default="fr", env="DEID_LANGUAGE")
-    DEID_CONFIDENCE_THRESHOLD: float = Field(default=0.5, env="DEID_CONFIDENCE_THRESHOLD")
+    DEID_CONFIDENCE_THRESHOLD: float = Field(default=0.7, env="DEID_CONFIDENCE_THRESHOLD")  # Increased from 0.5 to 0.7 for better precision
 
     # SpaCy Configuration
     SPACY_MODEL: str = Field(default="fr_core_news_sm", env="SPACY_MODEL")
