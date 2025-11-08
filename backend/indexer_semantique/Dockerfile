@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 
 # Create necessary directories
-RUN mkdir -p /app/data/vectors /app/data/models /app/logs
+RUN mkdir -p /app/data/vectors /app/data/models /app/logs /app/model_cache
 
 # Copy application code
 COPY app/ ./app/

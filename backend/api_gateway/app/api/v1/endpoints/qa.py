@@ -5,11 +5,12 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
 import httpx
 import uuid
+import json
 from datetime import datetime
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.database import execute_query, execute_one, execute_insert
+from app.core.database import execute_query, execute_one, execute_insert, get_db_pool
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -88,30 +89,45 @@ async def ask_question(
                     detail="Question answering service unavailable"
                 )
 
-        # Log interaction in audit
-        audit_data = {
-            "user_id": "anonymous",  # Would come from auth context
-            "session_id": session_id,
-            "action": "qa_interaction",
-            "resource_type": "qa_session",
-            "resource_id": session_id,
-            "action_details": {
-                "question": question,
-                "response_length": len(qa_response.get("answer", "")),
-                "sources_count": len(qa_response.get("sources", [])),
-                "confidence_score": qa_response.get("confidence_score")
-            }
-        }
-
-        # Send to audit logger (fire and forget)
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                await client.post(
-                    f"{settings.AUDIT_LOGGER_URL}/log",
-                    json=audit_data
+        # Save QA interaction to database for analytics and audit
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Insert into qa_interactions table (matching actual schema)
+            await conn.execute("""
+                INSERT INTO qa_interactions (
+                    id, question, answer, context_documents, 
+                    confidence_score, response_time_ms, llm_model
                 )
-        except Exception as e:
-            logger.warning("Failed to log QA audit", error=str(e))
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """, 
+                interaction_id,
+                question,
+                qa_response.get("answer", ""),
+                context_documents or [],
+                qa_response.get("confidence_score", 0.0),
+                qa_response.get("execution_time_ms", 0),
+                qa_response.get("model_used", "llama3.1:8b")
+            )
+            
+            # Insert audit log
+            await conn.execute("""
+                INSERT INTO audit_logs (
+                    user_id, action, resource_type, resource_id, details
+                )
+                VALUES ($1, $2, $3, $4, $5::jsonb)
+            """,
+                None,  # NULL for anonymous users
+                "qa_interaction",
+                "qa_session",
+                str(interaction_id),
+                json.dumps({
+                    "question_length": len(question),
+                    "response_length": len(qa_response.get("answer", "")),
+                    "sources_count": len(qa_response.get("sources", [])),
+                    "confidence_score": qa_response.get("confidence_score", 0.0),
+                    "session_id": session_id
+                })
+            )
 
         # Format response
         result = {

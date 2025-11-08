@@ -7,12 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
 import uuid
+import threading
 
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
 from app.core.health import get_health_status
 from app.core.database import db_manager
+from app.core.sync import sync_index_with_database
 from app.api.v1.api import api_router
+from app.consumer import consumer
 
 # Setup logging
 setup_logging()
@@ -34,11 +37,34 @@ async def lifespan(app: FastAPI):
         logger.info("Database connection established")
     except Exception as e:
         logger.error("Failed to connect to database", error=str(e))
+    
+    # Synchronize FAISS index with database on startup
+    try:
+        logger.info("Checking FAISS index synchronization with database...")
+        sync_result = await sync_index_with_database(force=False)
+        logger.info("FAISS index sync completed", 
+                   status=sync_result['status'],
+                   db_embeddings=sync_result['db_embeddings'],
+                   faiss_vectors=sync_result['faiss_vectors'],
+                   sync_performed=sync_result['sync_performed'])
+    except Exception as e:
+        logger.error("Failed to synchronize FAISS index", error=str(e))
+        # Continue startup even if sync fails
+    
+    # Start RabbitMQ consumer in background thread
+    try:
+        consumer.connect()
+        consumer_thread = threading.Thread(target=consumer.start_consuming, daemon=True)
+        consumer_thread.start()
+        logger.info("RabbitMQ consumer started in background thread")
+    except Exception as e:
+        logger.error("Failed to start RabbitMQ consumer", error=str(e))
 
     yield
 
     # Shutdown
     logger.info("Shutting down Semantic Indexer service")
+    consumer.stop()
     await db_manager.disconnect()
 
 

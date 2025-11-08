@@ -46,13 +46,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set up middleware
+# Set up CORS middleware - MUST be added before other middleware
+# This automatically handles OPTIONS preflight requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS,  # ["*"] for development
+    allow_credentials=False,  # MUST be False when using "*"
+    allow_methods=["*"],  # Allow all HTTP methods including OPTIONS
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all response headers
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 if not settings.DEBUG:
@@ -144,11 +147,6 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Include routers
-app.include_router(health_router, prefix="/health", tags=["health"])
-app.include_router(api_router, prefix=settings.API_V1_STR)
-
-
 @app.get("/", tags=["root"])
 async def root():
     """Root endpoint"""
@@ -158,6 +156,11 @@ async def root():
         "docs": "/docs",
         "health": "/health/"
     }
+
+
+# Include routers
+app.include_router(health_router, prefix="/health", tags=["health"])
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 if __name__ == "__main__":

@@ -146,14 +146,20 @@ class VectorStore:
                 query_vector = query_vector.reshape(1, -1)
 
             # Search
-            scores, indices = self.index.search(query_vector, min(k, self.index.ntotal))
+            actual_k = min(k, self.index.ntotal)
+            logger.info(f"FAISS search: requested k={k}, ntotal={self.index.ntotal}, actual_k={actual_k}")
+            scores, indices = self.index.search(query_vector, actual_k)
+            logger.info(f"FAISS returned: scores.shape={scores.shape}, indices.shape={indices.shape}")
 
             results = []
+            logger.info(f"Processing {len(scores[0])} FAISS results with threshold={threshold}")
             for score, idx in zip(scores[0], indices[0]):
                 if idx == -1:  # No more results
+                    logger.info(f"Skipping idx=-1")
                     continue
 
                 if threshold and score < threshold:
+                    logger.info(f"Filtered by threshold: score={score} < {threshold}")
                     continue
 
                 # Get chunk ID from mapping
