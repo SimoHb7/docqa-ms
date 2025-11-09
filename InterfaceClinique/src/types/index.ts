@@ -187,10 +187,12 @@ export interface AuditLog {
 }
 
 export interface SynthesisRequest {
-  type: 'patient_timeline' | 'treatment_summary' | 'diagnostic_report' | 'custom';
+  synthesis_id: string;
+  type: 'patient_timeline' | 'comparison' | 'summary';
   parameters: {
     patient_id?: string;
     document_ids?: string[];
+    document_id?: string;
     date_range?: {
       start: string;
       end: string;
@@ -201,12 +203,43 @@ export interface SynthesisRequest {
 }
 
 export interface SynthesisResponse {
-  synthesis_id: string;
-  type: string;
-  content: string;
+  synthesis_id?: string;
+  status: 'completed' | 'processing' | 'failed';
+  result: {
+    title: string;
+    content: string;
+    sections?: Array<{
+      title: string;
+      content: string;
+      date?: string;
+    }>;
+    key_findings?: string[];
+    comparisons?: Array<{
+      category: string;
+      filename?: string;
+      size?: number;
+      is_anonymized?: boolean;
+      pii_count?: number;
+      [key: string]: any;
+    }>;
+    summary_points?: string[];
+    recommendations?: string[];
+    conclusions?: string[];
+    _metadata?: {
+      used_anonymized_data: boolean;
+      documents_analyzed: number;
+      total_pii_detected?: number;
+      word_count?: number;
+      is_anonymized?: boolean;
+      pii_count?: number;
+      error?: string;
+    };
+  };
   generated_at: string;
-  parameters: Record<string, any>;
-  sources: Array<{
+  execution_time_ms: number;
+  type?: string;
+  parameters?: Record<string, any>;
+  sources?: Array<{
     document_id: string;
     filename: string;
     relevance_score: number;

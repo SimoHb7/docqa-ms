@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Groq API Configuration
-    GROQ_API_KEY: str = "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"
+    GROQ_API_KEY: Optional[str] = None  # Load from environment variable
     GROQ_MODEL: str = "llama-3.1-70b-versatile"  # Current available model for medical Q&A
 
     # Database Configuration

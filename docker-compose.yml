@@ -134,7 +134,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-      - GROQ_API_KEY=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
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,20 +148,23 @@ services:
   # ==========================================
 
   # Comparative Synthesis Service
-  # synthese-comparative:
-  #   build:
-  #     context: ./backend/synthese_comparative
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  synthese-comparative:
+    build:
+      context: ./backend/synthese_comparative
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # Audit Logger Service
   # audit-logger:
