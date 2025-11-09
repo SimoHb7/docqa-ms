@@ -82,23 +82,33 @@ const Upload: React.FC = () => {
       if (fileMetadata.patient_id) formData.append('patient_id', fileMetadata.patient_id);
       if (fileMetadata.document_type) formData.append('document_type', fileMetadata.document_type);
 
-      console.log('Uploading file with metadata:', {
+      console.log('📤 Uploading file with metadata:', {
         filename: file.name,
+        size: file.size,
+        type: file.type,
         patient_id: fileMetadata.patient_id,
         document_type: fileMetadata.document_type
       });
 
-      return documentsApi.upload(formData, (progress) => {
-        setUploadProgress(prev => ({
-          ...prev,
-          [file.name]: {
-            ...prev[file.name],
-            progress,
-          },
-        }));
-      });
+      try {
+        const result = await documentsApi.upload(formData, (progress) => {
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: {
+              ...prev[file.name],
+              progress,
+            },
+          }));
+        });
+        console.log('✅ Upload successful:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ Upload failed in mutationFn:', error);
+        throw error;
+      }
     },
     onSuccess: (data, { file }) => {
+      console.log('✅ onSuccess callback for:', file.name, data);
       setUploadProgress(prev => ({
         ...prev,
         [file.name]: {
@@ -108,13 +118,26 @@ const Upload: React.FC = () => {
         },
       }));
     },
-    onError: (_error, { file }) => {
+    onError: (error: any, { file }) => {
+      console.error('❌ Upload error for file:', file.name, error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText
+      });
+      
+      const errorMessage = error?.response?.data?.detail || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'Erreur lors du téléchargement';
+      
       setUploadProgress(prev => ({
         ...prev,
         [file.name]: {
           ...prev[file.name],
           status: 'error',
-          error: 'Erreur lors du téléchargement',
+          error: errorMessage,
         },
       }));
     },

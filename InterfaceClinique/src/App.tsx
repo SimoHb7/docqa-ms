@@ -19,7 +19,7 @@ import QAChat from './pages/QAChat';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import AuditLogs from './pages/AuditLogs';
-import Synthesis from './pages/Synthesis';
+import ModernSynthesis from './pages/ModernSynthesis';
 
 // Components
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -80,7 +80,7 @@ const AppRouter = () => {
           <Route path="upload" element={<Upload />} />
           <Route path="search" element={<Search />} />
           <Route path="qa" element={<QAChat />} />
-          <Route path="synthesis" element={<Synthesis />} />
+          <Route path="synthesis" element={<ModernSynthesis />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="settings" element={<Settings />} />
         </Route>

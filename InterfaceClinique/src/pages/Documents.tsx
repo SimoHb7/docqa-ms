@@ -22,6 +22,9 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  Checkbox,
+  Toolbar,
+  Stack,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -61,6 +64,7 @@ const Documents: React.FC = () => {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Debounce search query
   useEffect(() => {
@@ -163,6 +167,22 @@ const Documents: React.FC = () => {
     handleMenuClose();
   };
 
+  const toggleSelectAll = (checked: boolean) => {
+    if (!documentsData?.data) return;
+    if (checked) {
+      setSelectedIds(documentsData.data.map(d => d.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      return [...prev, id];
+    });
+  };
+
   const handleDeleteDocument = () => {
     if (selectedDocument) {
       setDeleteDialogOpen(true);
@@ -224,22 +244,37 @@ const Documents: React.FC = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, gap: 2 }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
             Documents
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Gérez vos documents médicaux et consultez leur statut de traitement
+            Gérez vos documents médicaux et consultez leur statut de traitement. ({documentsData?.total ?? 0})
           </Typography>
         </Box>
-        <ButtonComponent
-          startIcon={<UploadIcon />}
-          onClick={() => navigate('/upload')}
-        >
-          Télécharger
-        </ButtonComponent>
-      </Box>
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button variant="outlined" onClick={() => { setRowsPerPage(documentsData?.total || 1000); setPage(0); }}>
+            Afficher tout
+          </Button>
+
+          <ButtonComponent
+            startIcon={<UploadIcon />}
+            onClick={() => navigate('/upload')}
+          >
+            Télécharger
+          </ButtonComponent>
+
+          <Button
+            variant="contained"
+            disabled={selectedIds.length === 0}
+            onClick={() => navigate('/synthesis', { state: { document_ids: selectedIds } })}
+          >
+            Générer synthèse ({selectedIds.length})
+          </Button>
+        </Stack>
+      </Toolbar>
 
       {/* Search and Filters */}
       <CardComponent sx={{ mb: 3 }}>
@@ -291,10 +326,29 @@ const Documents: React.FC = () => {
 
       {/* Documents Table */}
       <CardComponent>
+        {/* Toolbar inside card for search/actions */}
+        <Box px={2} pt={1}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems="center" justifyContent="space-between" gap={1}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Affichage: {filteredDocuments.length} / {documentsData?.total ?? 0}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Sélection: {selectedIds.length}
+            </Typography>
+          </Stack>
+        </Box>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    indeterminate={selectedIds.length > 0 && selectedIds.length < (filteredDocuments.length || 0)}
+                    checked={filteredDocuments.length > 0 && selectedIds.length === filteredDocuments.length}
+                    onChange={(e) => toggleSelectAll(e.target.checked)}
+                    inputProps={{ 'aria-label': 'select all documents' }}
+                  />
+                </TableCell>
                 <TableCell>Nom du fichier</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>Taille</TableCell>
@@ -305,9 +359,16 @@ const Documents: React.FC = () => {
             </TableHead>
             <TableBody>
               {filteredDocuments.map((document) => (
-                <TableRow key={document.id} hover>
+                <TableRow key={document.id} hover selected={selectedIds.includes(document.id)}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedIds.includes(document.id)}
+                      onChange={() => toggleSelectOne(document.id)}
+                      inputProps={{ 'aria-labelledby': `doc-${document.id}` }}
+                    />
+                  </TableCell>
                   <TableCell>
-                    <Typography variant="body2" fontWeight={500}>
+                    <Typography variant="body2" fontWeight={500} id={`doc-${document.id}`}>
                       {document.filename}
                     </Typography>
                     {document.patient_id && (
