@@ -57,7 +57,7 @@ export const backendDocuments = {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/documents/upload', {
+      const response = await fetch('http://localhost:8000/api/v1/documents/upload', {
         method: 'POST',
         body: formData,
       });
@@ -85,7 +85,7 @@ export const backendDocuments = {
         });
       }
 
-      const response = await fetch(`http://localhost:8000/documents?${queryParams}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/documents?${queryParams}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ export const backendDocuments = {
   // Get document details
   get: async (documentId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/documents/${documentId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ export const backendDocuments = {
   // Delete document
   delete: async (documentId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/documents/${documentId}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/documents/${documentId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -410,9 +410,9 @@ export const backendAudit = {
 
 // Synthesis operations
 export const backendSynthesis = {
-  generate: async (request: SynthesisRequest) => {
+  generate: async (request: SynthesisRequest): Promise<SynthesisResponse> => {
     try {
-      const response = await fetch('http://localhost:8000/synthesis', {
+      const response = await fetch('http://localhost:8005/api/v1/synthesis/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -421,28 +421,24 @@ export const backendSynthesis = {
       });
 
       if (!response.ok) {
-        throw new Error(`Synthesis failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Synthesis failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
-      console.error('Synthesis failed:', error);
-      // Return mock synthesis
-      return {
-        synthesis_id: 'mock-synthesis-' + Date.now(),
-        type: request.type,
-        content: `# Synthèse ${request.type}\n\n## Résumé\nSynthèse simulée pour le développement. Le backend n'est pas disponible.\n\n## Recommandations\n- Point 1\n- Point 2\n- Point 3`,
-        generated_at: new Date().toISOString(),
-        parameters: request.parameters,
-        sources: [
-          {
-            document_id: 'mock-doc-1',
-            filename: 'document.pdf',
-            relevance_score: 0.9,
-          },
-        ],
-      };
+      console.error('Synthesis generation failed:', error);
+      throw error;
     }
+  },
+
+  list: async (params?: { limit?: number; offset?: number }) => {
+    // Mock implementation for now since we don't have a list endpoint yet
+    return {
+      data: [],
+      total: 0,
+    };
   },
 };
 

@@ -21,9 +21,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS Configuration
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+    BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",  # React dev server
         "http://localhost:8000",  # API Gateway
+        "http://127.0.0.1:3000",  # Alternative localhost
     ]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
@@ -57,7 +58,7 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str = "/"
 
     # LLM Configuration
-    GROQ_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None  # Load from environment variable
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 

@@ -133,7 +133,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-      - GROQ_API_KEY=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
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,7 +146,7 @@ services:
   # PHASE 2 SERVICES (IMPLEMENT LATER)
   # ==========================================
 
-  # Comparative Synthesis Service EL - BELAIDI
+  # Comparative Synthesis Service
   synthese-comparative:
     build:
       context: ./backend/synthese_comparative
@@ -156,6 +156,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -163,8 +164,6 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/shared:/app/shared:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Audit Logger Service
   audit-logger:
