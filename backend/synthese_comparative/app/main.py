@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.v1.api import api_router
 from app.core.health import router as health_router
+from app.services.database import test_connection
 
 # Setup structured logging
 setup_logging()
@@ -27,6 +28,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Synthese Comparative Service")
 
     # Startup tasks
+    # Test database connection
+    try:
+        db_ok = await test_connection()
+        if db_ok:
+            logger.info("Database connection verified successfully")
+        else:
+            logger.warning("Database connection test failed - service may have limited functionality")
+    except Exception as e:
+        logger.error("Database connection test error", error=str(e))
+    
     logger.info("Synthese Comparative Service startup complete")
 
     yield
@@ -47,12 +58,14 @@ app = FastAPI(
 )
 
 # Set up middleware
+# CORS - Allow all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins in development
+    allow_credentials=False,  # Must be False when allow_origins is ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 if not settings.DEBUG:
