@@ -61,7 +61,7 @@ async def ask_question(
             try:
                 response = await client.post(
                     f"{settings.LLM_QA_URL}/qa/ask",
-                    json=qa_request
+                    json={"question": question.strip(), "context_documents": context_documents or [], "session_id": session_id}
                 )
 
                 if response.status_code != 200:

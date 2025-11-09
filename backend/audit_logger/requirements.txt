@@ -1,0 +1,30 @@
+# Audit Logger Requirements - SIMPLIFIED FOR STUDENT PROJECT
+# Core dependencies only for Phase 2
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Data Validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database (PostgreSQL)
+psycopg2-binary==2.9.9
+
+# HTTP Client (for receiving audit events)
+httpx==0.25.2
+
+# Logging
+structlog==23.2.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# ==========================================
+# OPTIONAL - Uncomment when needed
+# ==========================================
+
+# Testing (development only)
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
