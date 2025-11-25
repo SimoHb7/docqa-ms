@@ -1,29 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Toaster } from 'react-hot-toast';
 import { useAppStore } from './store';
 import getTheme from './theme';
+import { useAuthToken } from './hooks/useAuthToken';
 
 // Modern Layout
 import ModernLayout from './components/layout/ModernLayout';
 
-// Pages
-import ProfessionalDashboard from './pages/ProfessionalDashboard';
-import Documents from './pages/Documents';
-import Upload from './pages/Upload';
-import Search from './pages/Search';
-import QAChat from './pages/QAChat';
-import Settings from './pages/Settings';
+// Critical pages - load immediately
 import Login from './pages/Login';
-import AuditLogs from './pages/AuditLogs';
-import ModernSynthesis from './pages/ModernSynthesis';
-
-// Components
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+
+// Lazy load non-critical pages for better LCP
+const ProfessionalDashboard = lazy(() => import('./pages/ProfessionalDashboard'));
+const Documents = lazy(() => import('./pages/Documents'));
+const Upload = lazy(() => import('./pages/Upload'));
+const Search = lazy(() => import('./pages/Search'));
+const QAChat = lazy(() => import('./pages/QAChat'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AuditLogs = lazy(() => import('./pages/AuditLogs'));
+const ModernSynthesis = lazy(() => import('./pages/ModernSynthesis'));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -75,13 +76,41 @@ const AppRouter = () => {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<ProfessionalDashboard />} />
-          <Route path="documents" element={<Documents />} />
-          <Route path="upload" element={<Upload />} />
-          <Route path="search" element={<Search />} />
-          <Route path="qa" element={<QAChat />} />
-          <Route path="synthesis" element={<ModernSynthesis />} />
-          <Route path="audit" element={<AuditLogs />} />
+          <Route path="dashboard" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <ProfessionalDashboard />
+            </Suspense>
+          } />
+          <Route path="documents" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Documents />
+            </Suspense>
+          } />
+          <Route path="upload" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Upload />
+            </Suspense>
+          } />
+          <Route path="search" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <Search />
+            </Suspense>
+          } />
+          <Route path="qa" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <QAChat />
+            </Suspense>
+          } />
+          <Route path="synthesis" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <ModernSynthesis />
+            </Suspense>
+          } />
+          <Route path="audit" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <AuditLogs />
+            </Suspense>
+          } />
           <Route path="settings" element={<Settings />} />
         </Route>
 
@@ -95,6 +124,9 @@ const AppRouter = () => {
 // Main App Component
 function App() {
   const { theme: appTheme } = useAppStore();
+  
+  // Sync Auth0 tokens with API client
+  useAuthToken();
 
   // Create MUI theme based on app theme
   const theme = useMemo(() => getTheme(appTheme), [appTheme]);

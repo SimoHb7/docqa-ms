@@ -1,0 +1,10 @@
+
+""Get database connection"str"¨!
+
+a a($"#unknown-value#-
++
+a a(1"#get-field# DATABASE_URL:D
+B
+a a(2"
+psycopg2connect:Bpsycopg2._psycopg.connection
+a a(2*&C:\docqa-ms\backend\llm_qa\app\main.py

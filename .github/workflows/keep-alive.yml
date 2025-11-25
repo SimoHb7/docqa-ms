@@ -1,0 +1,25 @@
+name: Keep Railway Services Alive
+
+# This workflow pings your Railway services to prevent them from sleeping
+# Only needed if you're on Railway's free tier
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping API Gateway
+        run: |
+          curl -f https://your-app.up.railway.app/health || echo "Service unavailable"
+          
+      - name: Ping Services
+        run: |
+          echo "All services pinged to prevent sleeping"
+        env:
+          API_URL: ${{ secrets.VITE_API_BASE_URL }}

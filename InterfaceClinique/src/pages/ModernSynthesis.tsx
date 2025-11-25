@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
-  Button,
+
   TextField,
   FormControl,
   InputLabel,
@@ -12,9 +12,7 @@ import {
   MenuItem,
   Chip,
   Alert,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+
   CircularProgress,
   Autocomplete,
   Stack,
@@ -24,7 +22,7 @@ import {
 } from '@mui/material';
 import {
   Assessment as SynthesisIcon,
-  ExpandMore as ExpandMoreIcon,
+
   Download as DownloadIcon,
   Timeline as TimelineIcon,
   Compare as CompareIcon,
@@ -33,41 +31,80 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { backendSynthesis, backendDocuments } from '../services/backend';
+import { useAuth0 } from '@auth0/auth0-react';
+import { backendSynthesis } from '../services/backend';
+import { documentsApi } from '../services/api';
 import { formatDate } from '../utils';
 import { SynthesisRequest, SynthesisResponse, Document } from '../types';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+
 import ButtonComponent from '../components/ui/Button';
 import CardComponent from '../components/ui/Card';
 
 const ModernSynthesis: React.FC = () => {
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [synthesisType, setSynthesisType] = useState<'patient_timeline' | 'comparison' | 'summary'>('patient_timeline');
   const [patientId, setPatientId] = useState('');
   const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
   const [result, setResult] = useState<SynthesisResponse | null>(null);
 
-  // Fetch available documents
+  // Fetch available documents using proper API client with auth interceptor
   const { data: documentsData, isLoading: loadingDocuments } = useQuery({
-    queryKey: ['documents'],
-    queryFn: () => backendDocuments.list({ limit: 1000 }),
+    queryKey: ['documents', 'synthesis-page'],
+    queryFn: async () => {
+      console.log('🔍 Fetching documents with auth...');
+      // Use documentsApi which has auth interceptor
+      const result = await documentsApi.list({ limit: 1000 });
+      console.log('✅ Documents fetched:', result);
+      return result;
+    },
+    enabled: isAuthenticated && !authLoading, // Only fetch when authenticated
+    staleTime: 30000, // Cache for 30 seconds
+    retry: 1,
   });
 
   // API returns { data: Document[], total: number, ... }
-  const allDocuments = documentsData?.data || [];
+  // Parse metadata if it's a string
+  const allDocuments = React.useMemo(() => {
+    if (!documentsData?.data) return [];
+    
+    return documentsData.data.map(doc => {
+      // Parse metadata if it's a JSON string
+      if (doc.metadata && typeof doc.metadata === 'string') {
+        try {
+          doc.metadata = JSON.parse(doc.metadata);
+        } catch (e) {
+          console.error('Failed to parse metadata for document:', doc.id, e);
+        }
+      }
+      // Extract patient_id to top level for convenience
+      if (doc.metadata && typeof doc.metadata === 'object') {
+        doc.patient_id = doc.metadata.patient_id;
+        doc.document_type = doc.metadata.document_type;
+      }
+      return doc;
+    });
+  }, [documentsData]);
   
   // Debug logging
   React.useEffect(() => {
     console.log('📊 documentsData:', documentsData);
     console.log('📦 allDocuments:', allDocuments);
     console.log('📦 allDocuments length:', allDocuments.length);
+    if (allDocuments.length > 0) {
+      console.log('📄 First document structure:', allDocuments[0]);
+      console.log('🔑 First document patient_id:', allDocuments[0].patient_id);
+      console.log('🔑 First document metadata:', allDocuments[0].metadata);
+    }
   }, [documentsData, allDocuments]);
 
   // Get unique patient IDs for autocomplete suggestions
   const availablePatientIds = React.useMemo(() => {
     const ids = allDocuments
-      .map(doc => doc.patient_id)
+      .map(doc => doc.patient_id || doc.metadata?.patient_id)
       .filter((id): id is string => !!id);
-    return Array.from(new Set(ids)).sort();
+    const uniqueIds = Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b));
+    console.log('📋 Available patient IDs:', uniqueIds);
+    return uniqueIds;
   }, [allDocuments]);
 
   // Filter documents by patient ID (case-insensitive partial match)
@@ -76,9 +113,11 @@ const ModernSynthesis: React.FC = () => {
       return allDocuments;
     }
     const searchTerm = patientId.toLowerCase().trim();
-    const filtered = allDocuments.filter(doc => 
-      doc.patient_id?.toLowerCase().includes(searchTerm)
-    );
+    const filtered = allDocuments.filter(doc => {
+      // Check both top-level patient_id and metadata.patient_id
+      const docPatientId = doc.patient_id || doc.metadata?.patient_id;
+      return docPatientId?.toLowerCase().includes(searchTerm);
+    });
     console.log(`🔍 Filtering for "${patientId}": found ${filtered.length} documents`);
     return filtered;
   }, [allDocuments, patientId]);
@@ -202,7 +241,7 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
   const renderResult = () => {
     if (!result) return null;
 
-    const { result: data, execution_time_ms, generated_at, status } = result;
+    const { result: data, execution_time_ms, generated_at } = result;
     const typeInfo = getSynthesisTypeInfo(synthesisType);
 
     return (
@@ -429,45 +468,46 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
                 sx={{ mb: 3 }}
               />
 
-              <Autocomplete
-                multiple
-                options={documents}
-                getOptionLabel={(option) => option.filename}
-                value={selectedDocuments}
-                onChange={(_, newValue) => setSelectedDocuments(newValue)}
-                loading={loadingDocuments}
-                noOptionsText={
-                  patientId.trim() 
-                    ? "Aucun document trouvé pour ce patient" 
-                    : "Entrez un ID patient pour voir les documents"
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={synthesisType === 'summary' ? 'Sélectionner un document' : 'Sélectionner des documents'}
-                    placeholder={patientId.trim() ? "Documents filtrés par patient" : "Entrez d'abord un ID patient..."}
-                    helperText={
-                      synthesisType === 'summary' 
-                        ? 'Sélectionnez un document' 
-                        : synthesisType === 'comparison'
-                        ? 'Sélectionnez au moins 2 documents'
-                        : 'Sélectionnez un ou plusieurs documents'
-                    }
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <li {...props}>
-                    <Box>
-                      <Typography variant="body2">{option.filename}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.file_type} • {option.is_anonymized ? 'Anonymisé' : 'Non anonymisé'}
-                        {option.patient_id && ` • Patient: ${option.patient_id}`}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                sx={{ mb: 3 }}
-              />
+              {patientId.trim() && (
+                <Autocomplete
+                  multiple
+                  options={documents}
+                  getOptionLabel={(option) => option.filename}
+                  value={selectedDocuments}
+                  onChange={(_, newValue) => setSelectedDocuments(newValue)}
+                  loading={loadingDocuments}
+                  noOptionsText="Aucun document trouvé pour ce patient"
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label={synthesisType === 'summary' ? 'Sélectionner un document' : 'Sélectionner des documents'}
+                      placeholder="Documents filtrés par patient"
+                      helperText={
+                        synthesisType === 'summary' 
+                          ? 'Sélectionnez un document' 
+                          : synthesisType === 'comparison'
+                          ? 'Sélectionnez au moins 2 documents'
+                          : 'Sélectionnez un ou plusieurs documents'
+                      }
+                    />
+                  )}
+                  renderOption={(props, option) => {
+                    const { key, ...otherProps } = props as any;
+                    return (
+                      <li key={key} {...otherProps}>
+                        <Box>
+                          <Typography variant="body2">{option.filename}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.file_type} • {option.is_anonymized ? 'Anonymisé' : 'Non anonymisé'}
+                            {option.patient_id && ` • Patient: ${option.patient_id}`}
+                          </Typography>
+                        </Box>
+                      </li>
+                    );
+                  }}
+                  sx={{ mb: 3 }}
+                />
+              )}
 
               {patientId.trim() && documents.length === 0 && (
                 <Alert severity="warning" sx={{ mb: 3 }}>

@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 import asyncio
 import re
+from groq import Groq
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -15,6 +16,9 @@ from app.services.anonymization_service import anonymization_service
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+# Initialize Groq client for AI-powered synthesis
+groq_client = Groq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
 
 
 # Helper functions for medical information extraction
@@ -212,84 +216,113 @@ async def generate_synthesis(
 
 async def generate_patient_timeline(parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate patient timeline synthesis using REAL anonymized documents
+    Generate AI-powered patient timeline with chronological medical history
     """
-    patient_id = parameters.get("patient_id", "ANON_PAT_001")
+    patient_id = parameters.get("patient_id", "Patient")
     document_ids = parameters.get("document_ids", [])
     
-    # Fetch anonymized documents from database
-    documents = []
-    if document_ids:
+    if not document_ids:
+        raise HTTPException(status_code=400, detail="Aucun document spécifié pour la chronologie")
+    
+    try:
+        documents = await anonymization_service.get_anonymized_documents_bulk(document_ids)
+        logger.info("Fetched documents for timeline", count=len(documents))
+    except Exception as e:
+        logger.error("Failed to fetch documents", error=str(e))
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des documents")
+    
+    if not documents:
+        raise HTTPException(status_code=404, detail="Aucun document trouvé")
+    
+    # Sort documents by date
+    documents.sort(key=lambda x: x.get("created_at", ""))
+    
+    # Prepare timeline for AI
+    doc_timeline = []
+    for idx, doc in enumerate(documents, 1):
+        content = doc.get("content", "")[:1500]
+        date = doc.get("created_at", "Date inconnue")
+        doc_timeline.append(f"**{date} - {doc['filename']}**\n{content}\n")
+    
+    # Generate AI timeline
+    if groq_client:
         try:
-            documents = await anonymization_service.get_anonymized_documents_bulk(document_ids)
-            logger.info("Fetched documents for timeline", count=len(documents))
+            combined_docs = "\n\n---\n\n".join(doc_timeline)
+            prompt = f"""Tu es un médecin expert en analyse de dossiers médicaux chronologiques.
+
+Analyse cette chronologie médicale du patient et produis un résumé temporel professionnel en français.
+
+CHRONOLOGIE MÉDICALE DU PATIENT:
+{combined_docs}
+
+Ta chronologie doit inclure:
+
+1. **Résumé Chronologique** - Histoire médicale dans l'ordre temporel
+2. **Évolution des Symptômes** - Progression ou amélioration
+3. **Diagnostics Successifs** - Diagnostic initial et évolutions
+4. **Traitements Appliqués** - Historique thérapeutique
+5. **Événements Médicaux Clés** - Hospitalisations, interventions, changements majeurs
+6. **État Actuel et Perspectives** - Situation actuelle et recommandations
+
+Fournis une chronologie médicale claire et structurée."""
+
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Tu es un médecin expert en analyse chronologique de dossiers médicaux."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2500
+            )
+            
+            ai_timeline = response.choices[0].message.content
+            
+            # Extract key findings
+            key_findings = []
+            for line in ai_timeline.split('\n'):
+                line = line.strip()
+                if line and (line.startswith('-') or line.startswith('•') or '**' in line) and len(line) < 150:
+                    clean_line = line.lstrip('-•* ').replace('**', '')
+                    if clean_line and len(clean_line) > 10:
+                        key_findings.append(clean_line)
+            
+            if not key_findings:
+                key_findings = ["Chronologie générée par IA", "Analyse temporelle complète"]
+            
         except Exception as e:
-            logger.error("Failed to fetch documents for timeline", error=str(e))
-            # Continue with empty documents list
-    
-    # Extract timeline data
-    timeline_data = await anonymization_service.extract_patient_timeline_data(documents)
-    
-    # Generate timeline content from real documents
-    sections = []
-    key_findings = []
-    
-    if documents:
-        # Build timeline from actual document content
-        content_parts = [f"# Chronologie du patient {patient_id}\n\n## Documents analysés\n"]
-        
-        for idx, doc in enumerate(documents, 1):
-            doc_date = doc.get("created_at", "Date inconnue")
-            content_parts.append(f"### Document {idx}: {doc['filename']}")
-            content_parts.append(f"- **Date**: {doc_date}")
-            content_parts.append(f"- **Type**: {doc.get('file_type', 'unknown')}")
-            content_parts.append(f"- **Anonymisé**: {'Oui' if doc.get('is_anonymized') else 'Non'}")
-            
-            # Extract first 300 characters as preview
-            content_preview = doc.get("content", "")[:300]
-            if content_preview:
-                content_parts.append(f"- **Extrait**: {content_preview}...\n")
-            
-            # Add to sections
-            sections.append({
-                "title": doc['filename'],
-                "content": content_preview,
-                "date": doc_date
-            })
-            
-            # Extract key findings (simplified - would use NLP in production)
-            if "hypertension" in doc.get("content", "").lower():
-                key_findings.append("Hypertension détectée")
-            if "diabète" in doc.get("content", "").lower() or "diabetes" in doc.get("content", "").lower():
-                key_findings.append("Diabète mentionné")
-        
-        content = "\n".join(content_parts)
+            logger.error("Groq AI timeline failed", error=str(e))
+            ai_timeline = f"**Chronologie Patient**\n\n" + "\n\n".join(doc_timeline[:3])
+            key_findings = ["Chronologie basique (IA indisponible)"]
     else:
-        # Fallback content if no documents provided
-        content = f"""# Chronologie du patient {patient_id}
-
-## Aucun document fourni
-
-Veuillez spécifier des document_ids dans les paramètres pour générer une chronologie basée sur les documents réels.
-"""
-        logger.warning("No documents provided for timeline generation")
+        ai_timeline = f"**Chronologie Patient**\n\n" + "\n\n".join(doc_timeline[:3])
+        key_findings = ["Configuration IA requise"]
+    
+    sections = [
+        {
+            "date": doc.get("created_at", "Date inconnue"),
+            "title": doc['filename'],
+            "summary": doc.get("content", "")[:200] + "..."
+        }
+        for doc in documents
+    ]
 
     return {
-        "title": f"Chronologie du patient {patient_id}",
-        "content": content,
+        "title": f"Chronologie Médicale - {patient_id}",
+        "content": ai_timeline,
         "sections": sections,
-        "key_findings": key_findings if key_findings else ["Analyse basée sur documents réels"],
+        "key_findings": key_findings[:7],
         "_metadata": {
             "used_anonymized_data": True,
             "documents_analyzed": len(documents),
-            "total_pii_detected": sum(doc.get("pii_count", 0) for doc in timeline_data["documents"]),
+            "ai_model": "llama-3.3-70b-versatile"
         }
     }
 
 
 async def generate_comparison(parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate comparison synthesis using REAL anonymized documents
+    Generate AI-powered professional medical comparison
     """
     document_ids = parameters.get("document_ids", [])
     
@@ -303,278 +336,190 @@ async def generate_comparison(parameters: Dict[str, Any]) -> Dict[str, Any]:
             logger.error("Failed to fetch documents for comparison", error=str(e))
     
     if len(documents) < 2:
-        logger.warning("Comparison requires at least 2 documents", provided=len(documents))
-        return {
-            "title": "Comparaison inter-documents",
-            "content": "⚠️ La comparaison nécessite au moins 2 documents. Veuillez fournir plusieurs document_ids.",
-            "comparisons": [],
-            "conclusions": ["Nombre de documents insuffisant pour la comparaison"],
-            "_metadata": {
-                "used_anonymized_data": True,
-                "documents_analyzed": len(documents),
-                "error": "Insufficient documents"
-            }
-        }
+        raise HTTPException(status_code=400, detail="Minimum 2 documents requis pour la comparaison")
     
-    # Extract comparison data
-    comparison_data = await anonymization_service.extract_comparison_data(documents)
-    
-    # Build comparison content from real documents
-    content_parts = [f"# Comparaison médicale entre {len(documents)} documents\n"]
-    comparisons = []
-    
-    # Extract medical information from each document
-    medical_info = []
+    # Prepare documents for AI comparison
+    doc_summaries = []
     for idx, doc in enumerate(documents, 1):
-        content = doc.get("content", "").lower()
-        
-        # Extract medical entities (simplified - production would use NLP/NER)
-        info = {
-            "doc_num": idx,
-            "filename": doc['filename'],
-            "symptoms": extract_symptoms(content),
-            "diagnoses": extract_diagnoses(content),
-            "treatments": extract_treatments(content),
-            "medications": extract_medications(content),
-            "vital_signs": extract_vital_signs(content),
-        }
-        medical_info.append(info)
-        
-        # Add document header
-        label = f"Document {idx}"
-        content_parts.append(f"\n## {label}: {doc['filename']}")
-        content_parts.append(f"- **Type**: {doc.get('file_type', 'unknown')}")
-        content_parts.append(f"- **Anonymisé**: {'Oui' if doc.get('is_anonymized') else 'Non'}")
-        content_parts.append(f"- **Taille**: {len(doc.get('content', ''))} caractères\n")
-        
-        # Add extracted medical content
-        if info["symptoms"]:
-            content_parts.append(f"### Symptômes détectés:")
-            for symptom in info["symptoms"]:
-                content_parts.append(f"  - {symptom}")
-        
-        if info["diagnoses"]:
-            content_parts.append(f"\n### Diagnostics:")
-            for diagnosis in info["diagnoses"]:
-                content_parts.append(f"  - {diagnosis}")
-        
-        if info["treatments"]:
-            content_parts.append(f"\n### Traitements:")
-            for treatment in info["treatments"]:
-                content_parts.append(f"  - {treatment}")
-        
-        if info["medications"]:
-            content_parts.append(f"\n### Médicaments:")
-            for med in info["medications"]:
-                content_parts.append(f"  - {med}")
-        
-        if info["vital_signs"]:
-            content_parts.append(f"\n### Signes vitaux:")
-            for sign in info["vital_signs"]:
-                content_parts.append(f"  - {sign}")
-        
-        # Build comparison entry
-        comparisons.append({
-            "category": f"Document {idx}",
-            "filename": doc['filename'],
+        content = doc.get("content", "")[:2000]  # Limit per document
+        doc_summaries.append(f"### Document {idx}: {doc['filename']}\n{content}\n")
+    
+    # Generate AI-powered comparison
+    if groq_client:
+        try:
+            combined_docs = "\n\n".join(doc_summaries)
+            prompt = f"""Tu es un médecin expert en analyse comparative de documents médicaux.
+
+Compare ces {len(documents)} documents médicaux et produis une analyse comparative professionnelle en français.
+
+DOCUMENTS À COMPARER:
+{combined_docs}
+
+Ta comparaison doit inclure:
+
+1. **Vue d'ensemble** - Résumé de chaque document
+2. **Évolution Clinique** - Progression des symptômes, diagnostics et traitements
+3. **Concordances** - Points communs entre les documents
+4. **Divergences** - Différences et changements notables
+5. **Synthèse Médicale** - Analyse globale du dossier patient
+6. **Recommandations** - Suggestions pour le suivi médical
+
+Fournis une analyse comparative médicale structurée et professionnelle."""
+
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Tu es un médecin expert en analyse comparative."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2500
+            )
+            
+            ai_comparison = response.choices[0].message.content
+            
+            # Extract conclusions from AI response
+            conclusions = []
+            in_recommendations = False
+            for line in ai_comparison.split('\n'):
+                line = line.strip()
+                if 'recommandation' in line.lower() or 'conclusion' in line.lower():
+                    in_recommendations = True
+                if in_recommendations and (line.startswith('-') or line.startswith('•') or line.startswith('*')):
+                    conclusions.append(line.lstrip('-•* '))
+            
+            if not conclusions:
+                conclusions = [
+                    "Analyse comparative générée par IA",
+                    f"Comparaison de {len(documents)} documents médicaux",
+                    "Revue médicale recommandée"
+                ]
+            
+        except Exception as e:
+            logger.error("Groq AI comparison failed", error=str(e))
+            ai_comparison = f"**Comparaison de {len(documents)} documents**\n\n" + "\n\n".join(doc_summaries[:2])
+            conclusions = ["Comparaison basique (IA indisponible)"]
+    else:
+        ai_comparison = f"**Comparaison de {len(documents)} documents**\n\n" + "\n\n".join(doc_summaries[:2])
+        conclusions = ["Configuration IA requise"]
+    
+    comparisons = [
+        {
+            "document": doc['filename'],
             "size": len(doc.get('content', '')),
-            "is_anonymized": doc.get('is_anonymized', False),
-            "pii_count": len(doc.get('pii_entities', [])),
-            "symptoms_count": len(info["symptoms"]),
-            "diagnoses_count": len(info["diagnoses"]),
-            "treatments_count": len(info["treatments"]),
-        })
-    
-    # Add comparative analysis
-    content_parts.append("\n## 🔍 Analyse comparative médicale\n")
-    
-    # Compare symptoms across documents
-    all_symptoms = set()
-    for info in medical_info:
-        all_symptoms.update(info["symptoms"])
-    if all_symptoms:
-        content_parts.append("### Symptômes communs et différences:")
-        for symptom in all_symptoms:
-            docs_with_symptom = [info["doc_num"] for info in medical_info if symptom in info["symptoms"]]
-            if len(docs_with_symptom) > 1:
-                content_parts.append(f"  - ✓ **{symptom}** (Documents: {', '.join(map(str, docs_with_symptom))})")
-            else:
-                content_parts.append(f"  - {symptom} (Document {docs_with_symptom[0]} uniquement)")
-    
-    # Compare diagnoses
-    all_diagnoses = set()
-    for info in medical_info:
-        all_diagnoses.update(info["diagnoses"])
-    if all_diagnoses:
-        content_parts.append("\n### Diagnostics comparés:")
-        for diagnosis in all_diagnoses:
-            docs_with_diagnosis = [info["doc_num"] for info in medical_info if diagnosis in info["diagnoses"]]
-            if len(docs_with_diagnosis) > 1:
-                content_parts.append(f"  - ✓ **{diagnosis}** (Documents: {', '.join(map(str, docs_with_diagnosis))})")
-            else:
-                content_parts.append(f"  - {diagnosis} (Document {docs_with_diagnosis[0]} uniquement)")
-    
-    # Compare treatments
-    all_treatments = set()
-    for info in medical_info:
-        all_treatments.update(info["treatments"])
-    if all_treatments:
-        content_parts.append("\n### Traitements comparés:")
-        for treatment in all_treatments:
-            docs_with_treatment = [info["doc_num"] for info in medical_info if treatment in info["treatments"]]
-            if len(docs_with_treatment) > 1:
-                content_parts.append(f"  - ✓ **{treatment}** (Documents: {', '.join(map(str, docs_with_treatment))})")
-            else:
-                content_parts.append(f"  - {treatment} (Document {docs_with_treatment[0]} uniquement)")
-    
-    # Add technical metadata
-    content_parts.append("\n## 📊 Métadonnées techniques\n")
-    lengths = [len(doc.get('content', '')) for doc in documents]
-    content_parts.append(f"- **Document le plus long**: Document {lengths.index(max(lengths)) + 1} ({max(lengths)} caractères)")
-    content_parts.append(f"- **Document le plus court**: Document {lengths.index(min(lengths)) + 1} ({min(lengths)} caractères)")
-    
-    # Compare anonymization
-    anonymized_count = sum(1 for doc in documents if doc.get('is_anonymized'))
-    content_parts.append(f"- **Documents anonymisés**: {anonymized_count}/{len(documents)}")
-    
-    # Compare PII detection
-    total_pii = sum(len(doc.get('pii_entities', [])) for doc in documents)
-    content_parts.append(f"- **Total d'entités PII détectées**: {total_pii}")
-    
-    content = "\n".join(content_parts)
-    
-    # Generate smart conclusions
-    conclusions = []
-    
-    # Symptom analysis
-    total_symptoms = sum(len(info["symptoms"]) for info in medical_info)
-    if total_symptoms > 0:
-        conclusions.append(f"{total_symptoms} symptôme(s) identifié(s) au total")
-    
-    # Diagnosis analysis
-    total_diagnoses = sum(len(info["diagnoses"]) for info in medical_info)
-    if total_diagnoses > 0:
-        conclusions.append(f"{total_diagnoses} diagnostic(s) mentionné(s)")
-    
-    # Common findings
-    common_symptoms = [s for s in all_symptoms if sum(1 for info in medical_info if s in info["symptoms"]) > 1]
-    if common_symptoms:
-        conclusions.append(f"Symptômes communs trouvés: {', '.join(list(common_symptoms)[:3])}")
-    
-    conclusions.append(f"{anonymized_count} document(s) anonymisé(s) sur {len(documents)}")
+            "type": doc.get('file_type', 'unknown'),
+            "anonymized": doc.get('is_anonymized', False)
+        }
+        for doc in documents
+    ]
 
     return {
-        "title": f"Comparaison médicale - {len(documents)} documents",
-        "content": content,
+        "title": f"Analyse Comparative - {len(documents)} Documents Médicaux",
+        "content": ai_comparison,
         "comparisons": comparisons,
-        "conclusions": conclusions,
+        "conclusions": conclusions[:5],
         "_metadata": {
             "used_anonymized_data": True,
             "documents_analyzed": len(documents),
-            "total_pii_detected": total_pii,
+            "ai_model": "llama-3.3-70b-versatile"
         }
     }
 
 
 async def generate_summary(parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate summary synthesis using REAL anonymized document
+    Generate AI-powered professional medical summary
     """
-    patient_id = parameters.get("patient_id", "ANON_PAT_001")
+    patient_id = parameters.get("patient_id", "Patient")
     document_id = parameters.get("document_id")
     document_ids = parameters.get("document_ids", [])
     
-    # Handle both single document_id and document_ids array
     if document_id and not document_ids:
         document_ids = [document_id]
     
     if not document_ids:
-        logger.warning("No document ID provided for summary")
-        return {
-            "title": f"Synthèse médicale - {patient_id}",
-            "content": "⚠️ Aucun document spécifié. Veuillez fournir un document_id ou document_ids.",
-            "summary_points": ["Aucun document à résumer"],
-            "recommendations": ["Fournir un document_id valide"],
-            "_metadata": {
-                "used_anonymized_data": False,
-                "documents_analyzed": 0,
-                "error": "No document ID provided"
-            }
-        }
+        raise HTTPException(status_code=400, detail="Aucun document spécifié")
     
-    # Fetch the first document (summary is typically for single document)
     try:
         document = await anonymization_service.get_anonymized_document(document_ids[0])
         if not document:
             raise ValueError(f"Document {document_ids[0]} not found")
     except Exception as e:
-        logger.error("Failed to fetch document for summary", error=str(e))
-        return {
-            "title": f"Synthèse médicale - {patient_id}",
-            "content": f"❌ Erreur: Impossible de récupérer le document {document_ids[0]}",
-            "summary_points": ["Document introuvable"],
-            "recommendations": ["Vérifier l'ID du document"],
-            "_metadata": {
-                "used_anonymized_data": False,
-                "documents_analyzed": 0,
-                "error": str(e)
-            }
-        }
+        logger.error("Failed to fetch document", error=str(e))
+        raise HTTPException(status_code=404, detail="Document introuvable")
     
-    # Extract summary data
-    summary_data = await anonymization_service.extract_summary_data(document)
+    # Get document content
+    content = document.get("content", "")
+    if not content or len(content.strip()) < 50:
+        raise HTTPException(status_code=400, detail="Contenu du document insuffisant")
     
-    # Generate summary from real document
-    content_preview = document["content"][:500] if document.get("content") else "Contenu vide"
-    word_count = summary_data.get("word_count", 0)
+    # Generate AI summary with Groq
+    if groq_client:
+        try:
+            prompt = f"""Tu es un médecin expert spécialisé dans la synthèse de documents médicaux.
+
+Analyse ce document médical et produis une synthèse professionnelle structurée en français.
+
+DOCUMENT À ANALYSER:
+{content[:4000]}
+
+Ta synthèse doit inclure:
+
+1. **Informations Patient** (si disponibles)
+2. **Motif de Consultation / Contexte**
+3. **Antécédents Médicaux Pertinents**
+4. **Symptômes et Signes Cliniques**
+5. **Examens et Diagnostics**
+6. **Traitement Prescrit**
+7. **Recommandations et Suivi**
+
+Fournis une synthèse médicale claire, structurée et professionnelle. Utilise un langage médical approprié mais compréhensible."""
+
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Tu es un médecin expert en synthèse médicale."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            ai_summary = response.choices[0].message.content
+            
+            # Extract summary points from AI response
+            summary_points = []
+            for line in ai_summary.split('\n'):
+                line = line.strip()
+                if line and (line.startswith('-') or line.startswith('•') or line.startswith('*')):
+                    summary_points.append(line.lstrip('-•* '))
+                elif line and len(line) < 100 and ':' in line:
+                    summary_points.append(line)
+            
+            if not summary_points:
+                summary_points = ["Synthèse générée par IA", "Analyse professionnelle complète"]
+            
+        except Exception as e:
+            logger.error("Groq AI synthesis failed", error=str(e))
+            ai_summary = f"**Résumé automatique**\n\nDocument: {document['filename']}\n\n{content[:800]}..."
+            summary_points = ["Synthèse basique (IA indisponible)"]
+    else:
+        ai_summary = f"**Document médical**\n\n{content[:800]}..."
+        summary_points = ["Configuration IA requise"]
     
-    content = f"""# Synthèse médicale - {patient_id}
-
-## Document analysé
-- **Nom du fichier**: {document['filename']}
-- **Type**: {document.get('file_type', 'unknown')}
-- **Anonymisé**: {'Oui' if document.get('is_anonymized') else 'Non'}
-- **Nombre de mots**: {word_count}
-- **Entités PII détectées**: {len(document.get('pii_entities', []))}
-
-## Extrait du document
-{content_preview}...
-
-## Analyse
-Ce document contient {word_count} mots et {'a été anonymisé' if document.get('is_anonymized') else "n'a pas été anonymisé"}.
-{'Des informations personnelles identifiables ont été détectées et anonymisées.' if document.get('is_anonymized') else ''}
-
-## État du traitement
-- Date de création: {document.get('created_at', 'Inconnue')}
-- Statut: Document réel du système
-"""
-
-    # Extract summary points from content (simplified - would use NLP in production)
-    summary_points = [
-        f"Document: {document['filename']}",
-        f"Taille: {word_count} mots",
-        f"Anonymisation: {'Effectuée' if document.get('is_anonymized') else 'Non effectuée'}",
-    ]
-    
-    if document.get('pii_entities'):
-        summary_points.append(f"{len(document['pii_entities'])} entité(s) PII détectée(s)")
-    
-    recommendations = [
-        "Document analysé avec succès",
-        "Contenu basé sur données réelles anonymisées" if document.get('is_anonymized') else "Attention: document non anonymisé",
-    ]
-
     return {
-        "title": f"Synthèse médicale - {document['filename']}",
-        "content": content,
-        "summary_points": summary_points,
-        "recommendations": recommendations,
+        "title": f"Synthèse Médicale - {document['filename']}",
+        "content": ai_summary,
+        "summary_points": summary_points[:5],
+        "recommendations": [
+            "Synthèse générée par intelligence artificielle",
+            "Revue médicale recommandée pour validation",
+        ],
         "_metadata": {
             "used_anonymized_data": True,
             "documents_analyzed": 1,
-            "word_count": word_count,
             "is_anonymized": document.get('is_anonymized', False),
-            "pii_count": len(document.get('pii_entities', [])),
+            "ai_model": "llama-3.3-70b-versatile"
         }
     }
 

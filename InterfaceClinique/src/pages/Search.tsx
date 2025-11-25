@@ -1,16 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   TextField,
   InputAdornment,
-  Button,
+
   Card,
   CardContent,
   Chip,
   List,
-  ListItem,
-  ListItemText,
+
   Divider,
   Accordion,
   AccordionSummary,
@@ -26,8 +25,8 @@ import {
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { searchApi } from '../services/api';
-import { formatDate, getConfidenceColor, getConfidenceLabel } from '../utils';
-import { SearchResult, FilterOptions } from '../types';
+import { getConfidenceColor, getConfidenceLabel } from '../utils';
+import { FilterOptions } from '../types';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ButtonComponent from '../components/ui/Button';
 
@@ -169,7 +168,7 @@ const Search: React.FC = () => {
               {/* Results List */}
               {results.length > 0 ? (
                 <List>
-                  {results.map((result, index) => (
+                  {results.map((result) => (
                     <Paper key={result.chunk_id} elevation={1} sx={{ mb: 2 }}>
                       <Accordion>
                         <AccordionSummary

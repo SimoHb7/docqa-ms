@@ -1,15 +1,13 @@
-import { Grid, Card, CardContent, Typography, Box, alpha, useTheme, LinearProgress, CircularProgress } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, alpha, useTheme, CircularProgress } from '@mui/material';
 import {
   TrendingUp,
   Description,
   CloudUpload,
   QuestionAnswer,
   CheckCircle,
-  Schedule,
-  Group,
-  Speed,
+
 } from '@mui/icons-material';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -41,8 +39,6 @@ ChartJS.register(
 
 // Modern Stat Card
 function ModernStatCard({ title, value, subtitle, icon, color, trend }: any) {
-  const theme = useTheme();
-  
   return (
     <Card
       sx={{
@@ -207,6 +203,8 @@ function ActivityLineChart({ data: chartData }: { data: { labels: string[]; docu
           font: {
             size: 12,
           },
+          stepSize: 1,
+          precision: 0,
         },
         border: {
           display: false,
@@ -230,6 +228,9 @@ function ActivityLineChart({ data: chartData }: { data: { labels: string[]; docu
     },
   };
 
+  // Check if there's any data
+  const hasData = chartData.documents.some((v: number) => v > 0) || chartData.questions.some((v: number) => v > 0);
+
   return (
     <Card>
       <CardContent sx={{ p: 4 }}>
@@ -242,7 +243,37 @@ function ActivityLineChart({ data: chartData }: { data: { labels: string[]; docu
           </Typography>
         </Box>
         <Box sx={{ height: 440, width: '100%', maxWidth: '100%' }}>
-          <Line data={data} options={options} />
+          {hasData ? (
+            <Line data={data} options={options} />
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              height: '100%',
+              textAlign: 'center'
+            }}>
+              <Box sx={{
+                width: 64,
+                height: 64,
+                borderRadius: 2,
+                bgcolor: 'action.hover',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 2
+              }}>
+                <CloudUpload sx={{ fontSize: 32, color: 'text.secondary' }} />
+              </Box>
+              <Typography variant="body1" color="text.secondary" gutterBottom>
+                Aucune activité cette semaine
+              </Typography>
+              <Typography variant="body2" color="text.disabled">
+                Vos statistiques apparaîtront ici une fois que vous aurez téléchargé des documents
+              </Typography>
+            </Box>
+          )}
         </Box>
       </CardContent>
     </Card>
@@ -308,6 +339,9 @@ function DocumentTypeChart({ data: chartData }: { data: { labels: string[]; data
     cutout: '65%',
   };
 
+  // Check if there's any data
+  const hasData = chartData.data.some((v: number) => v > 0);
+
   return (
     <Card>
       <CardContent sx={{ p: 4 }}>
@@ -320,7 +354,36 @@ function DocumentTypeChart({ data: chartData }: { data: { labels: string[]; data
           </Typography>
         </Box>
         <Box sx={{ height: 440, width: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Doughnut data={data} options={options} />
+          {hasData ? (
+            <Doughnut data={data} options={options} />
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              textAlign: 'center'
+            }}>
+              <Box sx={{
+                width: 64,
+                height: 64,
+                borderRadius: 2,
+                bgcolor: 'action.hover',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 2
+              }}>
+                <Description sx={{ fontSize: 32, color: 'text.secondary' }} />
+              </Box>
+              <Typography variant="body1" color="text.secondary" gutterBottom>
+                Aucun document
+              </Typography>
+              <Typography variant="body2" color="text.disabled">
+                Importez des documents pour voir leur répartition
+              </Typography>
+            </Box>
+          )}
         </Box>
       </CardContent>
     </Card>
@@ -329,6 +392,52 @@ function DocumentTypeChart({ data: chartData }: { data: { labels: string[]; data
 
 // Recent Activity Card
 function RecentActivity({ activities }: { activities: Array<{ id: number; type: string; title: string; time: string; color: string }> }) {
+  // Show empty state if no activities
+  if (!activities || activities.length === 0) {
+    return (
+      <Card>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight={600} gutterBottom>
+              Activité récente
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Vos dernières actions
+            </Typography>
+          </Box>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            py: 6,
+            textAlign: 'center'
+          }}>
+            <Box sx={{
+              width: 64,
+              height: 64,
+              borderRadius: 2,
+              bgcolor: 'action.hover',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 2
+            }}>
+              <QuestionAnswer sx={{ fontSize: 32, color: 'text.secondary' }} />
+            </Box>
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              Aucune activité récente
+            </Typography>
+            <Typography variant="body2" color="text.disabled">
+              Commencez par télécharger des documents ou poser une question
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardContent sx={{ p: 3 }}>

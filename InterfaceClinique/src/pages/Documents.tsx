@@ -13,7 +13,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Paper,
+
   IconButton,
   Menu,
   MenuItem,
@@ -116,7 +116,7 @@ const Documents: React.FC = () => {
     // Don't reset page here - it will be reset by the useEffect when debounced search updates
   };
 
-  const handlePageChange = (event: unknown, newPage: number) => {
+  const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

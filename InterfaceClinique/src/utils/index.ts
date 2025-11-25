@@ -45,7 +45,8 @@ export const slugify = (str: string): string => {
     .trim()
     .replace(/[^\w\s-]/g, '')
     .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-/, '')
+    .replace(/-$/, '');
 };
 
 // Array utilities
@@ -97,7 +98,8 @@ export const omit = <T, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> => {
 
 // Validation utilities
 export const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Safe regex without backtracking vulnerabilities
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return emailRegex.test(email);
 };
 

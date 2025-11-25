@@ -9,7 +9,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  Paper,
+
   Chip,
   TextField,
   InputAdornment,
@@ -21,13 +21,13 @@ import {
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
+
   Security as SecurityIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { auditApi } from '../services/api';
 import { formatDate } from '../utils';
-import { AuditLog } from '../types';
+
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import CardComponent from '../components/ui/Card';
 
@@ -50,7 +50,7 @@ const AuditLogs: React.FC = () => {
       }),
   });
 
-  const handlePageChange = (event: unknown, newPage: number) => {
+  const handlePageChange = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

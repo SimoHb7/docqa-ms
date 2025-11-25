@@ -1,36 +1,71 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
 // https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), tsconfigPaths()],
     server: {
         port: 3000,
         host: true,
+        strictPort: false,
         proxy: {
+            // API proxy configuration for development
             '/api': {
                 target: 'http://localhost:8000',
                 changeOrigin: true,
                 secure: false,
+                rewrite: function (path) {
+                    // Keep the /api prefix and just ensure we're hitting the right endpoint
+                    var newPath = path.replace(/^\/api/, '/api/v1');
+                    console.log("[Proxy] ".concat(path, " -> http://localhost:8000").concat(newPath));
+                    return newPath;
+                },
+                configure: function (proxy, _options) {
+                    proxy.on('error', function (err, _req, _res) {
+                        console.log('[Proxy Error]', err);
+                    });
+                    proxy.on('proxyReq', function (proxyReq, req, _res) {
+                        console.log('[Proxy Request]', req.method, req.url, '->', proxyReq.getHeader('host'));
+                    });
+                    proxy.on('proxyRes', function (proxyRes, req, _res) {
+                        console.log('[Proxy Response]', req.method, req.url, proxyRes.statusCode);
+                    });
+                },
             },
         },
     },
     build: {
         outDir: 'dist',
-        sourcemap: true,
+        sourcemap: false, // Disable in production for faster load
+        minify: 'esbuild', // Faster than terser
+        target: 'esnext',
+        chunkSizeWarningLimit: 1000,
         rollupOptions: {
             output: {
-                manualChunks: {
-                    vendor: ['react', 'react-dom'],
-                    ui: ['@mui/material', '@mui/icons-material'],
-                    charts: ['chart.js', 'react-chartjs-2', 'recharts'],
-                    auth: ['@auth0/auth0-react'],
+                manualChunks: function (id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                            return 'react-vendor';
+                        }
+                        if (id.includes('@mui/material')) {
+                            return 'mui-material';
+                        }
+                        if (id.includes('@mui/icons-material')) {
+                            return 'mui-icons';
+                        }
+                        if (id.includes('@auth0')) {
+                            return 'auth-vendor';
+                        }
+                        if (id.includes('@tanstack/react-query')) {
+                            return 'query-vendor';
+                        }
+                        if (id.includes('chart.js')) {
+                            return 'chart-vendor';
+                        }
+                        return 'vendor';
+                    }
                 },
             },
         },
-    },
-    test: {
-        globals: true,
-        environment: 'jsdom',
-        setupFiles: ['./src/test/setup.ts'],
     },
 });

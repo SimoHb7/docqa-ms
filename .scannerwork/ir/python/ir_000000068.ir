@@ -1,0 +1,79 @@
+
+"max_seq_length"str
+"device"str
+"ready"str
+"status"str
+"not_initialized"str
+"batch_size"str
+"model_name"str
+"dimension"str
+2)"Get information about the current model"strself
+Ç Ç("¶(
+&
+
+Ñ Ñ("#get-field# model:+
+)
+
+Ñ Ñ("
+__bool__*:BboolH+
+)
+
+Ñ Ñ("#unaryop !#2!:Bbool "
+
+Ñ Ñ( *
+Ñ Ñ(
+"`&
+$
+
+Ö Ö(0"#new-object#Bdict"
+ 
+
+Ö Ö(/	"	#map-set#:
+
+Ö Ö(0"˛&
+$
+
+á é(	
+"#new-object#Bdict-
++
+
+à à()"#get-field# model_name:"
+ 
+
+à à()"	#map-set#:
+,
+*
+
+â â('"#get-field# dimension:"
+ 
+
+â â('"	#map-set#:
+)
+'
+
+ä ä(!"#get-field# device:"
+ 
+
+ä ä(!"	#map-set#:
+1
+/
+
+ã ã(1"#get-field# max_seq_length:"
+ 
+
+ã ã(1"	#map-set#:
+-
++
+
+å å()"#get-field# batch_size:"
+ 
+
+å å()"	#map-set#:
+"
+ 
+
+ç ç("	#map-set#:
+
+
+á é(	
+*=C:\docqa-ms\backend\indexer_semantique\app\core\embeddings.py

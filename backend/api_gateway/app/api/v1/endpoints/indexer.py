@@ -3,12 +3,13 @@ Semantic Indexer API endpoints for DocQA-MS API Gateway
 Proxies requests to the IndexeurSémantique microservice
 """
 from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 import httpx
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -39,9 +40,12 @@ class IndexResponse(BaseModel):
 
 
 @router.post("/", response_model=IndexResponse)
-async def index_document(request: IndexRequest):
+async def index_document(
+    request: IndexRequest,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Index document chunks in the vector store
+    Index document chunks in the vector store (Protected - requires JWT)
     
     This endpoint processes document chunks, generates semantic embeddings,
     and stores them in the FAISS vector database for semantic search.
@@ -126,9 +130,15 @@ async def index_document(request: IndexRequest):
 
 
 @router.get("/status/{document_id}")
-async def get_indexing_status(document_id: str):
+async def get_indexing_status(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get indexing status for a document
+    Get indexing status for a document (Protected - requires JWT)
+    """
+    logger.info("Indexer status check", user_id=current_user["id"], document_id=document_id)
+    """
     
     Returns the current indexing status and progress information.
     
@@ -193,9 +203,15 @@ async def get_indexing_status(document_id: str):
 
 
 @router.delete("/{document_id}")
-async def delete_document_index(document_id: str):
+async def delete_document_index(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Delete all indexed chunks for a document
+    Delete all indexed chunks for a document (Protected - requires JWT)
+    """
+    logger.info("Delete document index", user_id=current_user["id"], document_id=document_id)
+    """
     
     This removes all vectors and metadata associated with the document
     from the vector store.
@@ -269,9 +285,14 @@ async def delete_document_index(document_id: str):
 
 
 @router.get("/stats")
-async def get_indexer_statistics():
+async def get_indexer_statistics(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get vector store and indexing statistics
+    Get vector store and indexing statistics (Protected - requires JWT)
+    """
+    logger.info("Indexer stats accessed", user_id=current_user["id"])
+    """
     
     Returns information about the vector store size, embedding model,
     and search configuration.

@@ -1,0 +1,22 @@
+
+´ª"
+    Dependency to get current authenticated user from JWT token
+    
+    Returns the token payload with user info:
+    - sub: Auth0 user ID (e.g., "auth0|123456")
+    - email: User's email
+    - name: User's name (if available)
+    - permissions: List of permissions (if configured)
+    "strcredentials
+‡ ‡(A"œ5
+3
+
+’ ’(#token"#get-field# credentials:#
+!
+
+“ “('"#unknown-value#,
+*
+
+“ “('payload"#unknown-value#
+
+” ”(*4C:\docqa-ms\backend\api_gateway\app\core\security.py

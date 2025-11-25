@@ -9,31 +9,41 @@ import json
 
 from app.core.database import get_db_pool
 from app.core.logging import get_logger
-from app.api.v1.endpoints.auth import get_current_user
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
 @router.get("/stats")
-async def get_dashboard_stats():
+async def get_dashboard_stats(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get dashboard statistics
+    Get dashboard statistics (Protected - requires JWT - user-specific data)
     """
+    logger.info("Dashboard stats accessed", user_id=current_user["id"])
     try:
+        from uuid import UUID
+        user_uuid = UUID(current_user["id"])
+        
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Get total documents count
-            total_docs = await conn.fetchval("SELECT COUNT(*) FROM documents")
+            # Get total documents count for current user only
+            total_docs = await conn.fetchval(
+                "SELECT COUNT(*) FROM documents WHERE user_id = $1",
+                user_uuid
+            )
 
-            # Get documents by status
+            # Get documents by status for current user
             docs_by_status = await conn.fetch("""
                 SELECT processing_status, COUNT(*) as count
                 FROM documents
+                WHERE user_id = $1
                 GROUP BY processing_status
-            """)
+            """, user_uuid)
 
-            # Get documents by type (from file extensions)
+            # Get documents by type (from file extensions) for current user
             docs_by_type = await conn.fetch("""
                 SELECT
                     CASE
@@ -46,25 +56,29 @@ async def get_dashboard_stats():
                     END as file_type,
                     COUNT(*) as count
                 FROM documents
+                WHERE user_id = $1
                 GROUP BY 1
-            """)
+            """, user_uuid)
 
-            # Get total QA interactions
-            total_questions = await conn.fetchval("SELECT COUNT(*) FROM qa_interactions")
+            # Get total QA interactions for current user only
+            total_questions = await conn.fetchval(
+                "SELECT COUNT(*) FROM qa_interactions WHERE user_id = $1",
+                user_uuid
+            )
 
-            # Get average confidence score
+            # Get average confidence score for current user
             avg_confidence = await conn.fetchval("""
                 SELECT COALESCE(AVG(confidence_score), 0) * 100
                 FROM qa_interactions
-                WHERE confidence_score IS NOT NULL
-            """)
+                WHERE confidence_score IS NOT NULL AND user_id = $1
+            """, user_uuid)
 
-            # Get average response time
+            # Get average response time for current user
             avg_response_time = await conn.fetchval("""
                 SELECT COALESCE(AVG(response_time_ms), 0)
                 FROM qa_interactions
-                WHERE response_time_ms IS NOT NULL
-            """)
+                WHERE response_time_ms IS NOT NULL AND user_id = $1
+            """, user_uuid)
 
             # Format the response
             stats = {
@@ -88,14 +102,21 @@ async def get_dashboard_stats():
 
 
 @router.get("/activity")
-async def get_recent_activity(limit: int = 10):
+async def get_recent_activity(
+    limit: int = 10,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get recent activity data
+    Get recent activity data (Protected - requires JWT - user-specific data)
     """
+    logger.info("Recent activity accessed", user_id=current_user["id"])
     try:
+        from uuid import UUID
+        user_uuid = UUID(current_user["id"])
+        
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Get recent audit logs
+            # Get recent audit logs for current user only - strict isolation
             activities = await conn.fetch("""
                 SELECT
                     action,
@@ -103,9 +124,10 @@ async def get_recent_activity(limit: int = 10):
                     details,
                     timestamp
                 FROM audit_logs
+                WHERE user_id = $1
                 ORDER BY timestamp DESC
-                LIMIT $1
-            """, limit)
+                LIMIT $2
+            """, user_uuid, limit)
 
             # Format activities for frontend
             formatted_activities = []
@@ -176,34 +198,42 @@ async def get_recent_activity(limit: int = 10):
 
 
 @router.get("/weekly-activity")
-async def get_weekly_activity():
+async def get_weekly_activity(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get weekly activity data for documents and questions (last 7 days)
+    Get weekly activity data for documents and questions (Protected - requires JWT - user-specific data)
     """
+    logger.info("Weekly activity accessed", user_id=current_user["id"])
     try:
+        from uuid import UUID
+        user_uuid = UUID(current_user["id"])
+        
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            # Get document uploads for the last 7 days
+            # Get document uploads for the last 7 days for current user only
             documents_by_day = await conn.fetch("""
                 SELECT
                     DATE(created_at) as day,
                     COUNT(*) as count
                 FROM documents
                 WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+                  AND user_id = $1
                 GROUP BY DATE(created_at)
                 ORDER BY day
-            """)
+            """, user_uuid)
 
-            # Get questions asked for the last 7 days
+            # Get questions asked for the last 7 days for current user only
             questions_by_day = await conn.fetch("""
                 SELECT
                     DATE(created_at) as day,
                     COUNT(*) as count
                 FROM qa_interactions
                 WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+                  AND user_id = $1
                 GROUP BY DATE(created_at)
                 ORDER BY day
-            """)
+            """, user_uuid)
 
             # Create a dict for easy lookup
             docs_dict = {row["day"]: row["count"] for row in documents_by_day}
