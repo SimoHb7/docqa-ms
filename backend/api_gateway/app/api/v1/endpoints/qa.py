@@ -2,7 +2,7 @@
 Question-Answering API endpoints for DocQA-MS API Gateway
 """
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 import httpx
 import uuid
 import json
@@ -11,6 +11,7 @@ from datetime import datetime
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.database import execute_query, execute_one, execute_insert, get_db_pool
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -20,17 +21,26 @@ logger = get_logger(__name__)
 async def ask_question(
     question: str = Query(..., description="Question in natural language"),
     context_documents: Optional[List[str]] = Query(None, description="Specific document IDs to search in"),
-    session_id: Optional[str] = Query(None, description="QA session ID for conversation continuity")
+    session_id: Optional[str] = Query(None, description="QA session ID for conversation continuity"),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Ask a question and get AI-powered answer from documents
+    Ask a question and get AI-powered answer from documents (Protected - requires JWT token)
     """
+    logger.info("QA request", user_id=current_user["id"], question_length=len(question))
     try:
         # Validate question
-        if not question or len(question.strip()) < 5:
+        question_trimmed = question.strip() if question else ""
+        if not question_trimmed:
             raise HTTPException(
                 status_code=400,
-                detail="Question must be at least 5 characters long"
+                detail="Question cannot be empty"
+            )
+        
+        if len(question_trimmed) < 5:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Question must be at least 5 characters long (currently {len(question_trimmed)} characters)"
             )
 
         # Generate interaction ID
@@ -42,7 +52,7 @@ async def ask_question(
 
         # Prepare QA request
         qa_request = {
-            "question": question.strip(),
+            "question": question_trimmed,
             "context_documents": context_documents or [],
             "session_id": session_id,
             "interaction_id": interaction_id
@@ -95,12 +105,13 @@ async def ask_question(
             # Insert into qa_interactions table (matching actual schema)
             await conn.execute("""
                 INSERT INTO qa_interactions (
-                    id, question, answer, context_documents, 
+                    id, user_id, question, answer, context_documents, 
                     confidence_score, response_time_ms, llm_model
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             """, 
                 interaction_id,
+                current_user["id"],  # Add user_id
                 question,
                 qa_response.get("answer", ""),
                 context_documents or [],
@@ -116,7 +127,7 @@ async def ask_question(
                 )
                 VALUES ($1, $2, $3, $4, $5::jsonb)
             """,
-                None,  # NULL for anonymous users
+                current_user["id"],  # Add user_id for audit log
                 "qa_interaction",
                 "qa_session",
                 str(interaction_id),
@@ -167,11 +178,13 @@ async def ask_question(
 @router.get("/sessions")
 async def list_qa_sessions(
     limit: int = Query(20, description="Maximum number of sessions", ge=1, le=100),
-    offset: int = Query(0, description="Pagination offset", ge=0)
+    offset: int = Query(0, description="Pagination offset", ge=0),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    List user's QA sessions from database
+    List user's QA sessions from database (Protected - requires JWT)
     """
+    logger.info("List QA sessions", user_id=current_user["id"])
     try:
         # Get distinct sessions from QA interactions
         # Note: We're grouping by user_id since we don't have a sessions table yet
@@ -228,10 +241,14 @@ async def list_qa_sessions(
 
 
 @router.get("/sessions/{session_id}")
-async def get_qa_session(session_id: str):
+async def get_qa_session(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get conversation history for a QA session from database
+    Get conversation history for a QA session from database (Protected - requires JWT)
     """
+    logger.info("Get QA session", user_id=current_user["id"], session_id=session_id)
     try:
         # Get interactions for this session (using user_id as session_id)
         query = """
@@ -296,10 +313,14 @@ async def get_qa_session(session_id: str):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_qa_session(session_id: str):
+async def delete_qa_session(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Delete a QA session and all its interactions from database
+    Delete a QA session and all its interactions from database (Protected - requires JWT)
     """
+    logger.info("Delete QA session", user_id=current_user["id"], session_id=session_id)
     try:
         # Delete all interactions for this user/session
         query = """

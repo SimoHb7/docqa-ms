@@ -1,0 +1,70 @@
+
+1.0PythonFrontend"1764082964898*py2.B½
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+module5
+
+
+class6
+
+function7
+3
+.backend/indexer_semantique/app/core/logging.py9
+
+app.core.logging11
+	
+sys12
+
+pythonjsonlogger14
+
+app.core.config16
+!
+app.core.logging.get_logger18
+	
+str20
+$
+app.core.logging.setup_logging22J
+
+8
+89j 
+ 
+10
+10115 *
+8 (
+
+13
+13125
+
+15
+15145
+
+17
+17165
+
+19
+19187 210
+
+21
+21206
+
+23
+23227 210rh
+
+10131*
+8 (
+
+10151*
+8 ((
+
+10171*
+8 (%
+
+19214*
+8. .(

@@ -12,7 +12,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Avatar,
+
   alpha,
   useTheme,
   Tab,
@@ -216,6 +216,7 @@ export default function ModernDocuments() {
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>, doc: Document) => {
     setAnchorEl(event.currentTarget);

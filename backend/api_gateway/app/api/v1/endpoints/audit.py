@@ -3,13 +3,14 @@ Audit API endpoints for DocQA-MS API Gateway
 """
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Query, Depends
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import httpx
 import json
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.database import get_db_pool
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -23,11 +24,13 @@ async def get_audit_logs(
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(50, description="Maximum number of logs", ge=1, le=500),
-    offset: int = Query(0, description="Pagination offset", ge=0)
+    offset: int = Query(0, description="Pagination offset", ge=0),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Retrieve audit logs with filtering and pagination from database
+    Retrieve audit logs with filtering and pagination from database (Protected - requires JWT)
     """
+    logger.info("Audit logs accessed", requesting_user_id=current_user["id"])
     try:
         logger.info(
             "Retrieving audit logs from database",
@@ -122,14 +125,16 @@ async def get_audit_logs(
 
 @router.get("/stats")
 async def get_audit_statistics(
-    days: int = Query(30, description="Number of days to analyze", ge=1, le=365)
+    days: int = Query(30, description="Number of days to analyze", ge=1, le=365),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Get audit statistics and usage metrics from database
+    Get audit statistics and usage metrics from database (Protected - requires JWT)
     """
+    logger.info("Audit stats accessed", user_id=current_user["id"])
     try:
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
         logger.info(
@@ -224,12 +229,14 @@ async def export_audit_logs(
     format: str = Query("json", description="Export format", regex="^(json|csv)$"),
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    user_id: Optional[str] = Query(None, description="Filter by user ID")
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Export audit logs from database for compliance and analysis
+    Export audit logs from database for compliance and analysis (Protected - requires JWT)
     Returns downloadable file in JSON or CSV format
     """
+    logger.info("Audit export accessed", user_id=current_user["id"])
     try:
         from fastapi.responses import StreamingResponse
         import io
@@ -290,10 +297,10 @@ async def export_audit_logs(
                 logs.append(log_entry)
 
         # Generate file content based on format
-        filename = f"audit_logs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{format}"
+        filename = f"audit_logs_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.{format}"
         
         if format == "json":
-            content = json.dumps({"logs": logs, "exported_at": datetime.utcnow().isoformat(), "total_records": len(logs)}, indent=2)
+            content = json.dumps({"logs": logs, "exported_at": datetime.now(timezone.utc).isoformat(), "total_records": len(logs)}, indent=2)
             media_type = "application/json"
             output = io.BytesIO(content.encode('utf-8'))
         
@@ -336,10 +343,13 @@ async def export_audit_logs(
 
 
 @router.get("/retention")
-async def get_audit_retention_info():
+async def get_audit_retention_info(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get information about audit log retention policies
+    Get information about audit log retention policies (Protected - requires JWT)
     """
+    logger.info("Audit retention info accessed", user_id=current_user["id"])
     try:
         retention_info = {
             "medical_audit_retention_years": 7,

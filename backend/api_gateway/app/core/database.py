@@ -60,3 +60,13 @@ async def execute_insert(query: str, *args):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         return await conn.execute(query, *args)
+
+
+async def get_db_connection():
+    """
+    Dependency for FastAPI to get a database connection
+    Usage: db = Depends(get_db_connection)
+    """
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        yield conn

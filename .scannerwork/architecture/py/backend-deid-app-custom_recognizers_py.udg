@@ -1,0 +1,154 @@
+
+1.0PythonFrontend"1764082967990*py2.B‡
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+module5
+
+
+class6
+
+function7
++
+&backend/deid/app/custom_recognizers.py9
+
+app.custom_recognizers11
+
+presidio_analyzer12
+
+typing14
+
+re16
+2
+,app.custom_recognizers.FrenchPhoneRecognizer18
+;
+5app.custom_recognizers.FrenchPhoneRecognizer.__init__20
+	
+str22
+1
++app.custom_recognizers.DoctorNameRecognizer24
+:
+4app.custom_recognizers.DoctorNameRecognizer.__init__26
+4
+.app.custom_recognizers.FrenchAddressRecognizer28
+=
+7app.custom_recognizers.FrenchAddressRecognizer.__init__30
+1
++app.custom_recognizers.CreditCardRecognizer32
+:
+4app.custom_recognizers.CreditCardRecognizer.__init__34
+0
+*app.custom_recognizers.FrenchSSNRecognizer36
+9
+3app.custom_recognizers.FrenchSSNRecognizer.__init__38
+0
+*app.custom_recognizers.MedicalIDRecognizer40
+9
+3app.custom_recognizers.MedicalIDRecognizer.__init__42J
+
+8
+89jš
+ 
+10
+10115 *
+8 (
+
+13
+13125
+
+15
+15145
+
+17
+17165
+
+19
+19186 210
+
+21
+21207 219
+
+23
+23226
+
+25
+25246 210
+
+27
+27267 225
+
+29
+29286 210
+
+31
+31307 229
+
+33
+33326 210
+
+35
+35347 233
+
+37
+37366 210
+
+39
+39387 237
+
+41
+41406 210
+
+43
+43427 241r–
+
+10131*
+8 (9
+
+10151*
+8 ("
+
+10171*
+8 (
+
+
+21234*
+8@	 @(
+
+21234*
+8@	 @(
+
+27234*
+8Ì	 Ì(
+
+27234*
+8Ì	 Ì(
+
+31234*
+8š	 š(
+
+31234*
+8š	 š(
+
+35234*
+8Ï	 Ï(
+
+35234*
+8Ï	 Ï(
+
+39234*
+8}	 }(
+
+39234*
+8}	 }(
+
+43234*
+8÷	 ÷(
+
+43234*
+8÷	 ÷(

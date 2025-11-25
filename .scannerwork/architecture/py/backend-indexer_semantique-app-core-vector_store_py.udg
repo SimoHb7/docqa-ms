@@ -1,0 +1,158 @@
+
+1.0PythonFrontend"1764082964856*py2.BÇ
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+module5
+
+
+class6
+
+function7
+8
+3backend/indexer_semantique/app/core/vector_store.py9
+
+app.core.vector_store11
+
+os12
+
+
+json14
+
+typing16
+
+app.core.config18
+
+app.core.logging20
+'
+!app.core.vector_store.VectorStore22
+1
++app.core.vector_store.VectorStore.get_stats24
+
+
+dict26
+6
+0app.core.vector_store.VectorStore.delete_vectors28
+	
+int30
+
+
+list32
+2
+,app.core.vector_store.VectorStore.save_index34
+0
+*app.core.vector_store.VectorStore.__init__36
+=
+7app.core.vector_store.VectorStore._load_or_create_index38
+3
+-app.core.vector_store.VectorStore.clear_index40
+3
+-app.core.vector_store.VectorStore.add_vectors42
+.
+(app.core.vector_store.VectorStore.search44J
+
+8
+89jõ
+ 
+10
+10115 *
+8 (
+
+13
+13125
+
+15
+15145
+
+17
+17165
+
+19
+19185
+
+21
+21205
+
+23
+23226 210
+
+25
+25247 223
+
+27
+27266
+
+29
+29287 223
+
+31
+31306
+
+33
+33326
+
+35
+35347 223
+
+37
+37367 223
+
+39
+39387 223
+
+41
+41407 223
+
+43
+43427 223
+
+45
+45447 223rÿ
+
+10131*
+8 (
+
+
+10151*
+8 (
+
+10171*
+8 (4
+
+10191*
+8	 	(%
+
+10211*
+8
+ 
+((
+
+25273*
+8È	 È(
+
+29313*
+8∫	 ∫(
+
+29334*
+8∫	 ∫(
+
+43333*
+8W	 W(
+
+43334*
+8W	 W(
+
+43334*
+8W	 W(
+
+45333*
+8	 (
+
+45314*
+8	 (

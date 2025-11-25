@@ -20,6 +20,9 @@ const Layout: React.FC = () => {
     setMobileSidebarOpen(false);
   };
 
+  // Calculate margin based on sidebar state
+  const mainContentMarginLeft = isMobile ? 0 : (sidebarOpen ? '280px' : 0);
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar */}
@@ -36,7 +39,7 @@ const Layout: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
-          marginLeft: isMobile ? 0 : (sidebarOpen ? '280px' : 0),
+          marginLeft: mainContentMarginLeft,
           transition: theme.transitions.create(['margin-left'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

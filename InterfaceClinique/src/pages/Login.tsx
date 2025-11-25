@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -13,7 +13,7 @@ import {
   IconButton,
   InputAdornment,
   Fade,
-  Grow,
+
   CircularProgress,
 } from '@mui/material';
 import {
@@ -37,7 +37,7 @@ import Auth0SetupGuide from '../components/ui/Auth0SetupGuide';
 const Login: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+
   const { loginWithRedirect, isAuthenticated, isLoading, error } = useAuth0();
 
   const [email, setEmail] = useState('');
@@ -46,6 +46,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
+
 
   // Redirect if already authenticated
   if (isAuthenticated) {

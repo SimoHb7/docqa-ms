@@ -71,8 +71,15 @@ export function useDashboardData() {
         const documentTypeLabels = Object.keys(documentsByType).map(key => typeLabels[key] || key.toUpperCase());
         const documentTypeCounts = Object.values(documentsByType);
 
-        // Use real weekly activity data from backend
-        const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+        // Generate actual day labels for the last 7 days
+        const today = new Date();
+        const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        const weekDays = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          weekDays.push(dayNames[date.getDay()]);
+        }
 
         // Format recent activities
         const formattedActivities = recentActivity.map((activity: any, index: number) => ({
@@ -102,11 +109,7 @@ export function useDashboardData() {
             labels: documentTypeLabels.length > 0 ? documentTypeLabels : ['PDF', 'DOCX', 'HL7', 'FHIR', 'Autres'],
             data: documentTypeCounts.length > 0 ? documentTypeCounts : [0, 0, 0, 0, 0],
           },
-          recentActivities: formattedActivities.length > 0 ? formattedActivities : [
-            { id: 1, type: 'upload', title: 'Rapport_Medical_001.pdf', time: 'Il y a 2h', color: '#3b82f6' },
-            { id: 2, type: 'question', title: 'Question sur analyse biologique', time: 'Il y a 4h', color: '#8b5cf6' },
-            { id: 3, type: 'upload', title: 'IRM_Cranienne.pdf', time: 'Il y a 5h', color: '#3b82f6' },
-          ],
+          recentActivities: formattedActivities,
         };
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
