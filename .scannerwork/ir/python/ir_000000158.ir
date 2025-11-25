@@ -1,0 +1,25 @@
+
+ÚÐ"
+    Dependency to require specific permission
+    
+    Usage:
+        @app.get("/admin", dependencies=[Depends(require_permission("admin"))])
+        async def admin_endpoint():
+            ...
+    "str
+permission
+¦ ¦(&"Â#
+!
+
+Â Â("#unknown-value#*
+(
+
+¯ Â(%closure"#new-object#.
+,
+
+¯ Â("#set-field# permission:-
++
+
+¯ Â("?python-partial-apply?:
+
+Â Â(*4C:\docqa-ms\backend\api_gateway\app\core\security.py

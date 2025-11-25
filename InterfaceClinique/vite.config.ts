@@ -37,22 +37,31 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false, // Disable in production for faster load
+    minify: 'esbuild', // Faster than terser
+    target: 'esnext',
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
               return 'react-vendor';
             }
-            if (id.includes('@mui')) {
-              return 'mui-vendor';
+            if (id.includes('@mui/material')) {
+              return 'mui-material';
+            }
+            if (id.includes('@mui/icons-material')) {
+              return 'mui-icons';
             }
             if (id.includes('@auth0')) {
               return 'auth-vendor';
             }
-            if (id.includes('@tanstack')) {
+            if (id.includes('@tanstack/react-query')) {
               return 'query-vendor';
+            }
+            if (id.includes('chart.js')) {
+              return 'chart-vendor';
             }
             return 'vendor';
           }

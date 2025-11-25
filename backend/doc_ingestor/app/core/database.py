@@ -45,7 +45,8 @@ class DatabaseManager:
         file_type: str,
         content: str,
         file_size: int,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ) -> str:
         """
         Save a document to the database
@@ -53,16 +54,20 @@ class DatabaseManager:
         Returns the document ID
         """
         try:
+            from uuid import UUID
             async with self.pool.acquire() as conn:
+                # Convert user_id string to UUID if provided
+                user_uuid = UUID(user_id) if user_id else None
+                
                 await conn.execute(
                     """
                     INSERT INTO documents 
                     (id, filename, file_type, content, file_size, processing_status, 
-                     is_anonymized, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                     is_anonymized, metadata, user_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
                     ON CONFLICT (id) DO UPDATE 
                     SET filename = $2, file_type = $3, content = $4, 
-                        file_size = $5, metadata = $8::jsonb
+                        file_size = $5, metadata = $8::jsonb, user_id = $9
                     """,
                     document_id,
                     filename,
@@ -71,7 +76,8 @@ class DatabaseManager:
                     file_size,
                     'uploaded',  # processing_status
                     False,       # is_anonymized
-                    json.dumps(metadata) if metadata else '{}'
+                    json.dumps(metadata) if metadata else '{}',
+                    user_uuid    # user_id
                 )
                 
                 logger.info("Document saved to database",

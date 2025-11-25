@@ -108,6 +108,7 @@ def publish_to_queue(document_id: str, file_path: str, metadata: dict) -> None:
 async def upload_document(
     file: UploadFile = File(...),
     document_id: Optional[str] = Form(None),  # Accept document_id from API Gateway
+    user_id: Optional[str] = Form(None),  # Accept user_id for document ownership
     patient_id: Optional[str] = Form(None),
     document_type: Optional[str] = Form(None)
 ):
@@ -426,9 +427,10 @@ async def upload_document(
                 file_type=file_extension,
                 content=anonymized_content,  # Save anonymized content instead of original
                 file_size=len(file_content),
-                metadata=metadata
+                metadata=metadata,
+                user_id=user_id  # Set document owner
             )
-            logger.info("Document saved to database (anonymized)", document_id=document_id)
+            logger.info("Document saved to database (anonymized)", document_id=document_id, user_id=user_id)
         except Exception as e:
             logger.error("Failed to save document to database", error=str(e))
             # Continue anyway - document is still on disk

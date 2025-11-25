@@ -2,7 +2,7 @@
 Search API endpoints for DocQA-MS API Gateway
 """
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 import httpx
 import uuid
@@ -10,6 +10,7 @@ import uuid
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.database import execute_query, execute_one
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -33,9 +34,12 @@ class SearchRequest(BaseModel):
 
 
 @router.post("/")
-async def search_documents(request: SearchRequest):
+async def search_documents(
+    request: SearchRequest,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Perform semantic search across documents
+    Perform semantic search across documents (Protected - requires JWT)
     
     This endpoint performs semantic search using natural language queries
     to find relevant document chunks based on meaning rather than keywords.
@@ -170,11 +174,13 @@ async def search_documents(request: SearchRequest):
 @router.get("/suggestions")
 async def get_search_suggestions(
     prefix: str = Query(..., description="Search prefix for suggestions", min_length=1),
-    limit: int = Query(10, description="Maximum number of suggestions", ge=1, le=50)
+    limit: int = Query(10, description="Maximum number of suggestions", ge=1, le=50),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Get search suggestions based on prefix from actual search queries
+    Get search suggestions based on prefix from actual search queries (Protected - requires JWT)
     """
+    logger.info("Search suggestions", user_id=current_user["id"], prefix=prefix)
     try:
         # Query database for common search terms that match the prefix
         query = """
@@ -238,10 +244,13 @@ async def get_search_suggestions(
 
 
 @router.get("/stats")
-async def get_search_statistics():
+async def get_search_statistics(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get search usage statistics from database
+    Get search usage statistics from database (Protected - requires JWT)
     """
+    logger.info("Search stats accessed", user_id=current_user["id"])
     try:
         # Get total QA interactions (proxy for searches)
         total_query = """

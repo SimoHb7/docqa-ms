@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
+
   CardContent,
-  Button,
+
   TextField,
   FormControl,
   InputLabel,
@@ -12,8 +12,7 @@ import {
   MenuItem,
   Chip,
   Alert,
-  Paper,
-  Divider,
+
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -22,7 +21,7 @@ import {
   Assessment as SynthesisIcon,
   ExpandMore as ExpandMoreIcon,
   Download as DownloadIcon,
-  Refresh as RefreshIcon,
+
 } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { synthesisApi } from '../services/api';

@@ -1,0 +1,163 @@
+
+1.0PythonFrontend"1764082965823*py2.Bå
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+module5
+
+
+class6
+
+function7
+4
+/backend/indexer_semantique/app/core/database.py9
+
+app.core.database11
+
+
+json12
+
+typing14
+
+datetime16
+
+app.core.config18
+
+app.core.logging20
+'
+!app.core.database.DatabaseManager22
+;
+5app.core.database.DatabaseManager.get_document_chunks24
+
+
+list26
+	
+str28
+/
+)app.core.database.DatabaseManager.connect30
+0
+*app.core.database.DatabaseManager.__init__32
+2
+,app.core.database.DatabaseManager.disconnect34
+>
+8app.core.database.DatabaseManager.delete_document_chunks36
+	
+int38
+1
++app.core.database.DatabaseManager.get_stats40
+
+
+dict42
+;
+5app.core.database.DatabaseManager.save_document_chunk44J
+
+8
+89j•
+ 
+10
+10115 *
+8 (
+
+13
+13125
+
+15
+15145
+
+17
+17165
+
+19
+19185
+
+21
+21205
+
+23
+23226 210
+
+25
+25247 223
+
+27
+27266
+
+29
+29286
+
+31
+31307 223
+
+33
+33327 223
+
+35
+35347 223
+
+37
+37367 223
+
+39
+39386
+
+41
+41407 223
+
+43
+43426
+
+45
+45447 223rŒ
+
+10131*
+8 (
+
+10151*
+8 (-
+
+10171*
+8 (
+
+10191*
+8	 	(%
+
+10211*
+8
+ 
+((
+
+25273*
+8i i("
+
+25294*
+8i i("
+
+37393*
+8‚ ‚(%
+
+37294*
+8‚ ‚(%
+
+41433*
+8š š(
+
+45293*
+8) )("
+
+45294*
+8) )("
+
+45394*
+8) )("
+
+45294*
+8) )("
+
+45434*
+8) )("

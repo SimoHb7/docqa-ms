@@ -1,4 +1,4 @@
-import { AppBar, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem, Badge, useTheme, alpha, Tooltip } from '@mui/material';
+import { AppBar, Toolbar, IconButton, Box, Avatar, Menu, MenuItem, Badge, useTheme, alpha, Tooltip } from '@mui/material';
 import { Menu as MenuIcon, Notifications as NotificationsIcon, Search as SearchIcon, Brightness4, Brightness7 } from '@mui/icons-material';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useState } from 'react';

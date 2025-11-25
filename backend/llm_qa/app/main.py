@@ -463,29 +463,20 @@ async def save_qa_interaction(
 ):
     """Save Q&A interaction to database"""
     try:
-        # Extract document IDs from sources
-        context_documents = []
-        for source in sources:
-            if 'document_id' in source and source['document_id'] not in context_documents:
-                context_documents.append(source['document_id'])
-        
-        # Use default system user for now (until Auth0 integration is fully implemented)
-        default_user_id = "00000000-0000-0000-0000-000000000001"
-        
-        # Save to database using db_manager
-        interaction_id = await db_manager.save_qa_interaction(
-            user_id=default_user_id,
-            question=question,
-            answer=answer,
-            context_documents=context_documents,
-            confidence_score=confidence_score,
-            response_time_ms=execution_time,
-            llm_model=settings.GROQ_MODEL,
-            sources=sources
+        # NOTE: The API Gateway is responsible for recording QA interactions
+        # and audit logs in the central database. To avoid duplicate entries
+        # we don't persist interactions here in the LLM service. This function
+        # remains as a hook for local logging and future extensibility.
+        logger.info(
+            "Q&A interaction (llm_qa) processed - not saved to central DB",
+            session_id=session_id,
+            question_length=len(question),
+            answer_length=len(answer),
+            sources_count=len(sources) if sources else 0,
         )
 
-        logger.info("Q&A interaction saved", interaction_id=interaction_id, session_id=session_id)
-
+        # Return a placeholder interaction id for compatibility if needed
+        return None
     except Exception as e:
         logger.error("Error saving Q&A interaction", error=str(e))
         # Don't raise exception - Q&A should still work even if logging fails

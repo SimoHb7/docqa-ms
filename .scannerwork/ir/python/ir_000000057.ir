@@ -1,0 +1,99 @@
+
+
+1int
+"a"bool
+!"overlap_size"str
+
+"total_characters"str
+
+0int
+5,"Estimate number of chunks for a given text"str
+"S3518"bool
+"avg_chunk_size"str
+"estimated_chunks"str
+
+2int
+"division by zero"boolself
+á á(text
+á á('"|+
+)
+
+â â("
+__bool__*:BboolH+
+)
+
+â â("#unaryop !#2!:Bbool "
+
+â â( *
+â â(
+"Ñ&
+$
+
+ä ä(A"#new-object#Bdict"
+ 
+
+ä ä()	"	#map-set#:"
+ 
+
+ä+ ä(@"	#map-set#:
+
+
+ä ä(A"£9
+7
+
+å å(total_chars"
+builtinslen*:Bint-
++
+
+ç ç(-"#get-field# chunk_size:0
+.
+
+ç1 ç(C"#get-field# chunk_overlap:,
+*
+
+ç1 ç(G"#dependent-value#*:<
+:
+
+ç ç(Havg_chars_per_chunk"	#binop -#*2-:,
+*
+
+è& è(G"
+#binop !=#2!=:Bbool"
+ 
+
+è& è(G"
+#assert#:,
+*
+
+è& è(G"#dependent-value#*:0
+.
+
+è" è(H"#dependent-value#*:Bint:
+8
+
+è è(Iestimated_chunks"
+builtinsmax*:&
+$
+
+ë ñ(	"#new-object#Bdict"
+ 
+
+í í(0"	#map-set#:"
+ 
+
+ì ì(+"	#map-set#:
+-
++
+
+î î(-"#get-field# chunk_size:"
+ 
+
+î î(- "	#map-set#:0
+.
+
+ï ï(.""#get-field# chunk_overlap:"
+ 
+
+ï ï(.#"	#map-set#:!"
+
+ë ñ(	*:C:\docqa-ms\backend\indexer_semantique\app\core\chunker.py

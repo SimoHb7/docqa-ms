@@ -35,14 +35,28 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token from secure memory storage
 apiClient.interceptors.request.use(
-  (config) => {
-    // Debug: Log the full request URL
-    console.log('Making request to:', (config.baseURL || '') + (config.url || ''));
-    console.log('Request config:', { method: config.method, url: config.url, baseURL: config.baseURL });
+  async (config) => {
+    // Debug: Log the full request URL (only in development)
+    if (import.meta.env.DEV) {
+      console.log('Making request to:', (config.baseURL || '') + (config.url || ''));
+    }
     
-    const token = localStorage.getItem('access_token');
+    // Import tokenStore dynamically to avoid circular dependency
+    const { tokenStore } = await import('../hooks/useAuthToken');
+    let token = tokenStore.getToken();
+    
+    // If no token in memory, try to get fresh token from Auth0
+    if (!token) {
+      console.warn('No token found in memory, attempting to refresh...');
+      // Dispatch custom event to trigger token refresh
+      window.dispatchEvent(new CustomEvent('auth0-token-refresh'));
+      // Wait a bit for token to be refreshed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      token = tokenStore.getToken();
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -59,30 +73,30 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        // Try to refresh token
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-
-          const { access_token } = response.data;
-          localStorage.setItem('access_token', access_token);
-
-          // Retry original request
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return apiClient(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+      console.warn('Auth error, attempting to refresh Auth0 token...');
+      
+      // Trigger Auth0 token refresh
+      window.dispatchEvent(new CustomEvent('auth0-token-refresh'));
+      
+      // Wait for token to be refreshed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get token from secure memory storage
+      const { tokenStore } = await import('../hooks/useAuthToken');
+      const newToken = tokenStore.getToken();
+      
+      if (newToken) {
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+      } else {
+        // No token available, clear memory and redirect to login
+        tokenStore.clearToken();
+        console.error('Failed to refresh token, redirecting to login');
         window.location.href = '/login';
-        return Promise.reject(refreshError);
       }
     }
 

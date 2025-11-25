@@ -15,7 +15,7 @@ import {
   Autocomplete,
   IconButton,
   Tooltip,
-  Badge,
+
   Fade,
   Slide,
   alpha,
@@ -28,7 +28,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Psychology as PsychologyIcon,
   Description as DocumentIcon,
-  Delete as DeleteIcon,
+
   Refresh as RefreshIcon,
   Close as CloseIcon,
   Help as HelpIcon,
@@ -37,7 +37,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { qaApi, documentsApi } from '../services/api';
-import { formatDate, getConfidenceColor, getConfidenceLabel } from '../utils';
+import { formatDate, getConfidenceColor } from '../utils';
 import { ChatMessage, QARequest, QAResponse, Document } from '../types';
 import ButtonComponent from '../components/ui/Button';
 import { useAppStore } from '../store';
@@ -53,6 +53,7 @@ const QAChat: React.FC = () => {
   const setSelectedDocumentsStore = useAppStore((state) => state.setSelectedDocuments);
   
   const [currentMessage, setCurrentMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDocumentError, setShowDocumentError] = useState(false);
@@ -120,7 +121,9 @@ const QAChat: React.FC = () => {
       if (data.session_id && data.session_id !== currentChatSession) {
         setCurrentChatSession(data.session_id);
       }
+      setIsSending(false);
     },
+    onError: () => setIsSending(false),
   });
 
   const scrollToBottom = () => {
@@ -132,8 +135,17 @@ const QAChat: React.FC = () => {
   }, [messages]);
 
   const handleSendMessage = () => {
-    if (!currentMessage.trim()) return;
+    const trimmedMessage = currentMessage.trim();
+    
+    if (!trimmedMessage) return;
     if (!currentChatSession) return; // Ensure we have a session
+    if (isSending) return; // Prevent double-submit
+    
+    // Validate minimum question length (backend requires 5 characters)
+    if (trimmedMessage.length < 5) {
+      // Could add a toast notification here
+      return;
+    }
     
     // Require document selection before sending message
     if (selectedDocuments.length === 0) {
@@ -155,11 +167,13 @@ const QAChat: React.FC = () => {
     addChatMessage(currentChatSession, userMessage);
 
     const request: QARequest = {
-      question: currentMessage,
+      question: trimmedMessage,
       session_id: currentChatSession,
       context_documents: selectedDocuments.map(doc => doc.id), // Always send selected documents
     };
 
+    // Mark as sending immediately to prevent duplicate submits
+    setIsSending(true);
     askMutation.mutate(request);
     setCurrentMessage('');
   };
@@ -826,11 +840,17 @@ const QAChat: React.FC = () => {
               },
             }}
           />
-          <Tooltip title={!currentMessage.trim() ? "Saisissez une question" : "Envoyer (Entrée)"}>
+          <Tooltip title={
+            !currentMessage.trim() 
+              ? "Saisissez une question" 
+              : currentMessage.trim().length < 5 
+                ? "Question trop courte (min 5 caractères)" 
+                : "Envoyer (Entrée)"
+          }>
             <span>
               <ButtonComponent
                 onClick={handleSendMessage}
-                disabled={!currentMessage.trim() || askMutation.isPending}
+                disabled={!currentMessage.trim() || currentMessage.trim().length < 5 || askMutation.isPending}
                 loading={askMutation.isPending}
                 variant="contained"
                 size="small"
