@@ -25,7 +25,7 @@ interface Auth0SetupGuideProps {
   onComplete?: () => void;
 }
 
-const Auth0SetupGuide: React.FC<Auth0SetupGuideProps> = ({ onComplete }) => {
+const Auth0SetupGuide: React.FC<Auth0SetupGuideProps> = () => {
   const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set());
 
   const steps = [

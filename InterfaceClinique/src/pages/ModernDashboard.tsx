@@ -1,4 +1,4 @@
-import { Grid, Card, CardContent, Typography, Box, LinearProgress, IconButton, alpha, useTheme, Chip, Avatar, AvatarGroup } from '@mui/material';
+import { Grid, Card, CardContent, Typography, Box, IconButton, alpha, useTheme, Chip, Avatar } from '@mui/material';
 import {
   TrendingUp,
   Description,
@@ -7,11 +7,9 @@ import {
   MoreVert,
   ArrowUpward,
   ArrowDownward,
-  AccessTime,
-  CheckCircle,
-  PendingActions,
+
 } from '@mui/icons-material';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 // Stat Card Component
 function StatCard({ title, value, change, trend, icon, color }: any) {

@@ -1,0 +1,24 @@
+
+ÎÄ"
+    Dependency to require specific role
+    
+    Usage:
+        @app.get("/admin", dependencies=[Depends(require_role("admin"))])
+        async def admin_endpoint():
+            ...
+    "strrole
+Å Å("¼#
+!
+
+á á("#unknown-value#*
+(
+
+Î á(%closure"#new-object#(
+&
+
+Î á("#set-field# role:-
++
+
+Î á("?python-partial-apply?:
+
+á á(*4C:\docqa-ms\backend\api_gateway\app\core\security.py

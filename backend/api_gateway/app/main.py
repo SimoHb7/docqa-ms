@@ -66,12 +66,48 @@ if not settings.DEBUG:
 
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    """Add processing time to response headers"""
+async def add_security_headers(request: Request, call_next):
+    """Add security headers and processing time"""
     start_time = time.time()
     response = await call_next(request)
+    
+    # Processing time
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
+    
+    # Security headers for production
+    # Content Security Policy - Prevent XSS attacks
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.auth0.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
+        "img-src 'self' data: https: blob:; "
+        "connect-src 'self' https://*.auth0.com http://localhost:* ws://localhost:*; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    # Clickjacking protection
+    response.headers["X-Frame-Options"] = "DENY"
+    
+    # XSS protection for older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # HTTPS enforcement (production only)
+    if not settings.DEBUG:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    # Permissions policy
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    
     return response
 
 

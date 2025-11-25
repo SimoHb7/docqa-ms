@@ -2,12 +2,13 @@
 Synthesis API endpoints for DocQA-MS API Gateway
 """
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 import httpx
 import uuid
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -20,12 +21,16 @@ async def create_synthesis(
     document_ids: Optional[str] = Query(None, description="Comma-separated list of document IDs"),
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    custom_parameters: Optional[str] = Query(None, description="Additional JSON parameters")
+    custom_parameters: Optional[str] = Query(None, description="Additional JSON parameters"),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Generate structured synthesis or comparison from documents
+    Generate structured synthesis or comparison from documents (Protected - requires JWT)
     """
     try:
+        from uuid import UUID
+        from app.core.database import get_db_pool
+        
         # Validate required parameters based on synthesis type
         if synthesis_type in ["patient_timeline", "summary"] and not patient_id:
             raise HTTPException(
@@ -44,7 +49,65 @@ async def create_synthesis(
 
         # Parse document IDs
         doc_ids = []
-        if document_ids:
+        
+        # If patient_id is provided, fetch documents from database for that patient (user-filtered)
+        if patient_id:
+            user_uuid = UUID(current_user["id"])
+            pool = await get_db_pool()
+            async with pool.acquire() as conn:
+                query = """
+                    SELECT id::text as doc_id, filename, created_at
+                    FROM documents
+                    WHERE user_id = $1 
+                      AND metadata->>'patient_id' = $2
+                    ORDER BY created_at ASC
+                """
+                
+                # Add date filtering if provided
+                if date_from and date_to:
+                    query = """
+                        SELECT id::text as doc_id, filename, created_at
+                        FROM documents
+                        WHERE user_id = $1 
+                          AND metadata->>'patient_id' = $2
+                          AND created_at >= $3::date
+                          AND created_at <= $4::date
+                        ORDER BY created_at ASC
+                    """
+                    rows = await conn.fetch(query, user_uuid, patient_id, date_from, date_to)
+                elif date_from:
+                    query = """
+                        SELECT id::text as doc_id, filename, created_at
+                        FROM documents
+                        WHERE user_id = $1 
+                          AND metadata->>'patient_id' = $2
+                          AND created_at >= $3::date
+                        ORDER BY created_at ASC
+                    """
+                    rows = await conn.fetch(query, user_uuid, patient_id, date_from)
+                elif date_to:
+                    query = """
+                        SELECT id::text as doc_id, filename, created_at
+                        FROM documents
+                        WHERE user_id = $1 
+                          AND metadata->>'patient_id' = $2
+                          AND created_at <= $3::date
+                        ORDER BY created_at ASC
+                    """
+                    rows = await conn.fetch(query, user_uuid, patient_id, date_to)
+                else:
+                    rows = await conn.fetch(query, user_uuid, patient_id)
+                
+                if not rows:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Aucun document trouvé pour le patient \"{patient_id}\". Assurez-vous que les documents ont le bon patient_id dans les métadonnées."
+                    )
+                
+                doc_ids = [row['doc_id'] for row in rows]
+                logger.info(f"Found {len(doc_ids)} documents for patient {patient_id}")
+        
+        elif document_ids:
             doc_ids = [doc_id.strip() for doc_id in document_ids.split(",") if doc_id.strip()]
 
         # Parse custom parameters
@@ -177,10 +240,14 @@ async def create_synthesis(
 
 
 @router.get("/{synthesis_id}")
-async def get_synthesis(synthesis_id: str):
+async def get_synthesis(
+    synthesis_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get synthesis result by ID
+    Get synthesis result by ID (Protected - requires JWT)
     """
+    logger.info("Get synthesis", user_id=current_user["id"], synthesis_id=synthesis_id)
     try:
         # This would query the database for synthesis status/result
         # For now, return mock data
@@ -228,11 +295,13 @@ async def list_syntheses(
     synthesis_type: Optional[str] = Query(None, description="Filter by synthesis type"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(20, description="Maximum number of results", ge=1, le=100),
-    offset: int = Query(0, description="Pagination offset", ge=0)
+    offset: int = Query(0, description="Pagination offset", ge=0),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    List syntheses with filtering and pagination
+    List syntheses with filtering and pagination (Protected - requires JWT)
     """
+    logger.info("List syntheses", user_id=current_user["id"])
     try:
         # This would query the database for syntheses
         # For now, return mock data
@@ -276,10 +345,14 @@ async def list_syntheses(
 
 
 @router.delete("/{synthesis_id}")
-async def delete_synthesis(synthesis_id: str):
+async def delete_synthesis(
+    synthesis_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Delete a synthesis
+    Delete a synthesis (Protected - requires JWT)
     """
+    logger.info("Delete synthesis", user_id=current_user["id"], synthesis_id=synthesis_id)
     try:
         # This would delete synthesis data from database
         logger.info("Synthesis deleted", synthesis_id=synthesis_id)

@@ -123,10 +123,28 @@ export default function ModernSidebar({ open, onClose, isMobile }: ModernSidebar
             {user?.name?.charAt(0)}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="subtitle2" fontWeight={600} noWrap>
+            <Typography
+              variant="subtitle2"
+              fontWeight={600}
+              noWrap
+              sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+            >
               {user?.name || user?.email}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+                fontSize: '0.72rem',
+              }}
+            >
               {user?.email}
             </Typography>
           </Box>

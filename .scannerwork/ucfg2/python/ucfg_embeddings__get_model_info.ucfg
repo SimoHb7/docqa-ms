@@ -1,0 +1,184 @@
+
+3app.core.embeddings.EmbeddingService.get_model_infoI
+=C:\docqa-ms\backend\indexer_semantique\app\core\embeddings.pyÇ Ç("2*Ö
+2
+É É(5l
+j
+
+Ñ Ñ(
+%15"__id*O
+
+__unknown_file (3*1&
+$app.core.embeddings.EmbeddingService"
+model*
+4
+5*Ä
+4
+á é(	
+
+á é(	
+%1"dictp
+n
+
+à à()
+%2"__id*T
+
+__unknown_file (8*6&
+$app.core.embeddings.EmbeddingService"
+
+model_nameì
+ê
+
+à à()
+%3"__mapSet*"
+
+__unknown_file (
+
+%1**
+
+__unknown_file (
+
+model_name*"
+
+__unknown_file (
+
+%2o
+m
+
+â â('
+%4"__id*S
+
+__unknown_file (7*5&
+$app.core.embeddings.EmbeddingService"
+	dimensioní
+è
+
+â â('
+%5"__mapSet*"
+
+__unknown_file (
+
+%1*)
+
+__unknown_file (
+	dimension*"
+
+__unknown_file (
+
+%4l
+j
+
+ä ä(!
+%6"__id*P
+
+__unknown_file (4*2&
+$app.core.embeddings.EmbeddingService"
+deviceè
+å
+
+ä ä(!
+%7"__mapSet*"
+
+__unknown_file (
+
+%1*&
+
+__unknown_file (
+
+device*"
+
+__unknown_file (
+
+%6t
+r
+
+ã ã(1
+%8"__id*X
+
+__unknown_file (<*:&
+$app.core.embeddings.EmbeddingService"
+max_seq_lengthó
+î
+
+ã ã(1
+%9"__mapSet*"
+
+__unknown_file (
+
+%1*.
+
+__unknown_file (
+max_seq_length*"
+
+__unknown_file (
+
+%8q
+o
+
+å å()
+%10"__id*T
+
+__unknown_file (8*6&
+$app.core.embeddings.EmbeddingService"
+
+batch_sizeï
+í
+
+å å()
+%11"__mapSet*"
+
+__unknown_file (
+
+%1**
+
+__unknown_file (
+
+batch_size*#
+
+__unknown_file (
+
+%10ì
+ê
+
+ç ç(
+%12"__mapSet*"
+
+__unknown_file (
+
+%1*&
+
+__unknown_file (
+
+status*%
+
+__unknown_file (	
+ready"
+
+á é(	
+
+%1*‰
+5
+Ö Ö(0
+
+Ö Ö(0
+%13"dictû
+õ
+
+Ö Ö(/
+%14"__mapSet*#
+
+__unknown_file (
+
+%13*&
+
+__unknown_file (
+
+status*/
+
+__unknown_file (
+not_initialized"
+
+Ö Ö(0
+
+%13B(&
+$app.core.embeddings.EmbeddingServiceH

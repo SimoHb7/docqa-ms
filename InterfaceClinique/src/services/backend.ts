@@ -1,18 +1,10 @@
 // Backend integration service for InterfaceClinique
 
-import { api } from './api';
 import type {
-  Document,
-  SearchResponse,
-  QAResponse,
   QARequest,
-  DashboardStats,
   FilterOptions,
-  AuditLog,
   SynthesisRequest,
   SynthesisResponse,
-  PaginatedResponse,
-  User,
 } from '../types';
 
 // Backend health check
@@ -433,7 +425,7 @@ export const backendSynthesis = {
     }
   },
 
-  list: async (params?: { limit?: number; offset?: number }) => {
+  list: async (_params?: { limit?: number; offset?: number }) => {
     // Mock implementation for now since we don't have a list endpoint yet
     return {
       data: [],

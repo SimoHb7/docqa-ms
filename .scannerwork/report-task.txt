@@ -1,0 +1,7 @@
+organization=lahbari-mohamed
+projectKey=lahbari-mohamed_docqa-ms
+serverUrl=https://sonarcloud.io
+serverVersion=8.0.0.76778
+dashboardUrl=https://sonarcloud.io/dashboard?id=lahbari-mohamed_docqa-ms
+ceTaskId=AZq7jDb4Xbdthejnmizu
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZq7jDb4Xbdthejnmizu

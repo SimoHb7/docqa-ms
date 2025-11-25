@@ -1,0 +1,166 @@
+
+1.0PythonFrontend"1764082966394*py2.B‹
+
+imports1
+
+extends2
+
+returns3
+
+	has param4
+
+module5
+
+
+class6
+
+function7
+>
+9backend/indexer_semantique/app/api/v1/endpoints/search.py9
+
+v1.endpoints.search11
+
+typing12
+
+fastapi14
+
+pydantic16
+
+
+time18
+
+app.core.embeddings20
+
+app.core.vector_store22
+
+app.core.config24
+
+app.core.logging26
+'
+!v1.endpoints.search.SearchRequest28
+
+pydantic.main.BaseModel30
+)
+#v1.endpoints.search.semantic_search32
+*
+$v1.endpoints.search.get_search_stats34
+&
+ v1.endpoints.search.SearchResult36
+&
+ v1.endpoints.search.SearchFilter38
+'
+!v1.endpoints.search.hybrid_search40
+(
+"v1.endpoints.search.SearchResponse42
+0
+*v1.endpoints.search.get_search_suggestions44
+	
+str46J
+
+8
+89j®
+ 
+10
+10115 *
+8 (
+
+13
+13125
+
+15
+15145
+
+17
+17165
+
+19
+19185
+
+21
+21205
+
+23
+23225
+
+25
+25245
+
+27
+27265
+
+29
+29286 210
+
+31
+31306
+
+33
+33327 210
+
+35
+35347 210
+
+37
+37366 210
+
+39
+39386 210
+
+41
+41407 210
+
+43
+43426 210
+
+45
+45447 210
+
+47
+47466rä
+
+10131*
+8 (-
+
+10151*
+8 (4
+
+10171*
+8 (&
+
+10191*
+8 (
+
+10211*
+8	 	(2
+
+10231*
+8
+ 
+(/
+
+10251*
+8 (%
+
+10271*
+8 ((
+
+29312*
+8 (
+
+33294*
+8: :(
+
+37312*
+8$ $(
+
+39312*
+8 (
+
+41294*
+8√ √(
+
+43312*
+80 0(
+
+45474*
+8– –(!

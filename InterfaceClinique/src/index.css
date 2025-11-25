@@ -9,6 +9,12 @@
   body {
     @apply bg-white text-gray-900;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-display: swap; /* Improve font loading performance */
+  }
+  
+  /* Improve rendering performance */
+  img, svg {
+    content-visibility: auto;
   }
 }
 
