@@ -3,11 +3,14 @@ Audit API endpoints for DocQA-MS API Gateway
 """
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Query, Depends
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import httpx
+import json
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.database import get_db_pool
+from app.core.dependencies import get_or_create_user
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -21,72 +24,94 @@ async def get_audit_logs(
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(50, description="Maximum number of logs", ge=1, le=500),
-    offset: int = Query(0, description="Pagination offset", ge=0)
+    offset: int = Query(0, description="Pagination offset", ge=0),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Retrieve audit logs with filtering and pagination
-    Requires admin privileges
+    Retrieve audit logs with filtering and pagination from database (Protected - requires JWT)
     """
+    logger.info("Audit logs accessed", requesting_user_id=current_user["id"])
     try:
-        # Build query parameters
-        query_params = {
+        logger.info(
+            "Retrieving audit logs from database",
+            limit=limit,
+            offset=offset,
+            action=action,
+            resource_type=resource_type
+        )
+
+        # Build WHERE clause dynamically
+        where_clauses = []
+        params = []
+        param_count = 1
+
+        if user_id:
+            where_clauses.append(f"user_id = ${param_count}")
+            params.append(user_id)
+            param_count += 1
+        
+        if action:
+            where_clauses.append(f"action = ${param_count}")
+            params.append(action)
+            param_count += 1
+        
+        if resource_type:
+            where_clauses.append(f"resource_type = ${param_count}")
+            params.append(resource_type)
+            param_count += 1
+        
+        if date_from:
+            where_clauses.append(f"timestamp >= ${param_count}::timestamptz")
+            params.append(f"{date_from} 00:00:00+00")
+            param_count += 1
+        
+        if date_to:
+            where_clauses.append(f"timestamp <= ${param_count}::timestamptz")
+            params.append(f"{date_to} 23:59:59+00")
+            param_count += 1
+
+        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+        # Get logs from database
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Get total count
+            count_query = f"SELECT COUNT(*) FROM audit_logs {where_sql}"
+            total = await conn.fetchval(count_query, *params)
+
+            # Get paginated logs
+            query = f"""
+                SELECT user_id, action, resource_type, resource_id, details, timestamp
+                FROM audit_logs
+                {where_sql}
+                ORDER BY timestamp DESC
+                LIMIT ${param_count} OFFSET ${param_count + 1}
+            """
+            params.extend([limit, offset])
+            
+            rows = await conn.fetch(query, *params)
+
+            logs = []
+            for row in rows:
+                log_entry = {
+                    "user_id": str(row['user_id']) if row['user_id'] else None,
+                    "action": row['action'],
+                    "resource_type": row['resource_type'],
+                    "resource_id": row['resource_id'],
+                    "details": json.loads(row['details']) if isinstance(row['details'], str) else row['details'],
+                    "timestamp": row['timestamp'].isoformat()
+                }
+                logs.append(log_entry)
+
+        logger.info("Audit logs retrieved", count=len(logs), total=total)
+
+        return {
+            "logs": logs,
+            "total": total,
             "limit": limit,
             "offset": offset
         }
 
-        if user_id:
-            query_params["user_id"] = user_id
-        if action:
-            query_params["action"] = action
-        if resource_type:
-            query_params["resource_type"] = resource_type
-        if date_from:
-            query_params["date_from"] = date_from
-        if date_to:
-            query_params["date_to"] = date_to
-
-        logger.info(
-            "Retrieving audit logs",
-            query_params=query_params,
-            limit=limit,
-            offset=offset
-        )
-
-        # Call audit logger service
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            try:
-                response = await client.get(
-                    f"{settings.AUDIT_LOGGER_URL}/logs",
-                    params=query_params
-                )
-
-                if response.status_code != 200:
-                    logger.error(
-                        "Audit logger service failed",
-                        status_code=response.status_code,
-                        response=response.text
-                    )
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Audit service temporarily unavailable"
-                    )
-
-                audit_data = response.json()
-
-            except httpx.RequestError as e:
-                logger.error(
-                    "Failed to connect to audit logger",
-                    error=str(e)
-                )
-                raise HTTPException(
-                    status_code=503,
-                    detail="Audit service unavailable"
-                )
-
-        return audit_data
-
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(
             "Unexpected error retrieving audit logs",
@@ -94,102 +119,98 @@ async def get_audit_logs(
         )
         raise HTTPException(
             status_code=500,
-            detail="Failed to retrieve audit logs"
+            detail=f"Failed to retrieve audit logs: {str(e)}"
         )
 
 
 @router.get("/stats")
 async def get_audit_statistics(
-    days: int = Query(30, description="Number of days to analyze", ge=1, le=365)
+    days: int = Query(30, description="Number of days to analyze", ge=1, le=365),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Get audit statistics and usage metrics
-    Requires admin privileges
+    Get audit statistics and usage metrics from database (Protected - requires JWT)
     """
+    logger.info("Audit stats accessed", user_id=current_user["id"])
     try:
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
 
-        query_params = {
-            "date_from": start_date.strftime("%Y-%m-%d"),
-            "date_to": end_date.strftime("%Y-%m-%d")
-        }
-
         logger.info(
-            "Retrieving audit statistics",
+            "Retrieving audit statistics from database",
             days=days,
-            date_from=query_params["date_from"],
-            date_to=query_params["date_to"]
+            date_from=start_date.isoformat(),
+            date_to=end_date.isoformat()
         )
 
-        # Call audit logger service for statistics
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            try:
-                response = await client.get(
-                    f"{settings.AUDIT_LOGGER_URL}/stats",
-                    params=query_params
-                )
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            # Get total events
+            total_events = await conn.fetchval("""
+                SELECT COUNT(*) FROM audit_logs
+                WHERE timestamp >= $1 AND timestamp <= $2
+            """, start_date, end_date)
 
-                if response.status_code != 200:
-                    logger.error(
-                        "Audit stats service failed",
-                        status_code=response.status_code,
-                        response=response.text
-                    )
-                    # Return mock stats if service fails
-                    stats = {
-                        "period_days": days,
-                        "total_events": 1250,
-                        "unique_users": 45,
-                        "events_by_action": {
-                            "document_upload": 234,
-                            "search_query": 456,
-                            "qa_interaction": 321,
-                            "synthesis_request": 89,
-                            "user_login": 150
-                        },
-                        "events_by_resource_type": {
-                            "document": 567,
-                            "search": 456,
-                            "qa_session": 321,
-                            "synthesis": 89,
-                            "user": 150
-                        },
-                        "daily_activity": [
-                            {"date": "2024-01-15", "events": 45},
-                            {"date": "2024-01-16", "events": 52},
-                            {"date": "2024-01-17", "events": 38}
-                        ],
-                        "compliance_flags": {
-                            "data_access_without_consent": 0,
-                            "unauthorized_access_attempts": 2,
-                            "data_export_events": 15
-                        }
-                    }
-                else:
-                    stats = response.json()
-                    stats["period_days"] = days
+            # Get unique users count
+            unique_users = await conn.fetchval("""
+                SELECT COUNT(DISTINCT user_id) FROM audit_logs
+                WHERE timestamp >= $1 AND timestamp <= $2
+                AND user_id IS NOT NULL
+            """, start_date, end_date)
 
-            except httpx.RequestError as e:
-                logger.error(
-                    "Failed to connect to audit stats service",
-                    error=str(e)
-                )
-                # Return mock stats
-                stats = {
-                    "period_days": days,
-                    "total_events": 1250,
-                    "unique_users": 45,
-                    "events_by_action": {
-                        "document_upload": 234,
-                        "search_query": 456,
-                        "qa_interaction": 321,
-                        "synthesis_request": 89,
-                        "user_login": 150
-                    }
-                }
+            # Get events by action
+            action_rows = await conn.fetch("""
+                SELECT action, COUNT(*) as count
+                FROM audit_logs
+                WHERE timestamp >= $1 AND timestamp <= $2
+                GROUP BY action
+                ORDER BY count DESC
+            """, start_date, end_date)
 
+            events_by_action = {row['action']: row['count'] for row in action_rows}
+
+            # Get events by resource type
+            resource_rows = await conn.fetch("""
+                SELECT resource_type, COUNT(*) as count
+                FROM audit_logs
+                WHERE timestamp >= $1 AND timestamp <= $2
+                GROUP BY resource_type
+                ORDER BY count DESC
+            """, start_date, end_date)
+
+            events_by_resource_type = {row['resource_type']: row['count'] for row in resource_rows}
+
+            # Get daily activity (last 7 days)
+            daily_rows = await conn.fetch("""
+                SELECT DATE(timestamp) as date, COUNT(*) as count
+                FROM audit_logs
+                WHERE timestamp >= $1 AND timestamp <= $2
+                GROUP BY DATE(timestamp)
+                ORDER BY date DESC
+                LIMIT 7
+            """, start_date, end_date)
+
+            daily_activity = [
+                {"date": row['date'].isoformat(), "events": row['count']}
+                for row in daily_rows
+            ]
+
+        stats = {
+            "period_days": days,
+            "total_events": total_events,
+            "unique_users": unique_users or 0,
+            "events_by_action": events_by_action,
+            "events_by_resource_type": events_by_resource_type,
+            "daily_activity": daily_activity,
+            "compliance_flags": {
+                "data_access_without_consent": 0,
+                "unauthorized_access_attempts": 0,
+                "data_export_events": 0
+            }
+        }
+
+        logger.info("Audit statistics retrieved", total_events=total_events)
         return stats
 
     except Exception as e:
@@ -199,7 +220,7 @@ async def get_audit_statistics(
         )
         raise HTTPException(
             status_code=500,
-            detail="Failed to retrieve audit statistics"
+            detail=f"Failed to retrieve audit statistics: {str(e)}"
         )
 
 
@@ -208,76 +229,105 @@ async def export_audit_logs(
     format: str = Query("json", description="Export format", regex="^(json|csv)$"),
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    user_id: Optional[str] = Query(None, description="Filter by user ID")
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
 ):
     """
-    Export audit logs for compliance and analysis
-    Requires admin privileges
-    Returns downloadable file
+    Export audit logs from database for compliance and analysis (Protected - requires JWT)
+    Returns downloadable file in JSON or CSV format
     """
+    logger.info("Audit export accessed", user_id=current_user["id"])
     try:
-        # Build export parameters
-        export_params = {
-            "format": format,
-            "include_compliance_flags": True
-        }
-
-        if date_from:
-            export_params["date_from"] = date_from
-        if date_to:
-            export_params["date_to"] = date_to
-        if user_id:
-            export_params["user_id"] = user_id
+        from fastapi.responses import StreamingResponse
+        import io
+        import csv
 
         logger.info(
-            "Exporting audit logs",
+            "Exporting audit logs from database",
             format=format,
             user_id=user_id,
             date_from=date_from,
             date_to=date_to
         )
 
-        # Call audit logger service for export
-        async with httpx.AsyncClient(timeout=60.0) as client:  # Longer timeout for export
-            try:
-                response = await client.get(
-                    f"{settings.AUDIT_LOGGER_URL}/export",
-                    params=export_params
-                )
+        # Build WHERE clause
+        where_clauses = []
+        params = []
+        param_count = 1
 
-                if response.status_code != 200:
-                    logger.error(
-                        "Audit export service failed",
-                        status_code=response.status_code,
-                        response=response.text
-                    )
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Audit export service temporarily unavailable"
-                    )
+        if user_id:
+            where_clauses.append(f"user_id = ${param_count}")
+            params.append(user_id)
+            param_count += 1
+        
+        if date_from:
+            where_clauses.append(f"timestamp >= ${param_count}::timestamptz")
+            params.append(f"{date_from} 00:00:00+00")
+            param_count += 1
+        
+        if date_to:
+            where_clauses.append(f"timestamp <= ${param_count}::timestamptz")
+            params.append(f"{date_to} 23:59:59+00")
+            param_count += 1
 
-                # Return file content with appropriate headers
-                from fastapi.responses import StreamingResponse
-                import io
+        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
-                content = response.content
-                filename = f"audit_logs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.{format}"
+        # Get audit logs
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            query = f"""
+                SELECT user_id, action, resource_type, resource_id, details, timestamp
+                FROM audit_logs
+                {where_sql}
+                ORDER BY timestamp DESC
+                LIMIT 10000
+            """
+            rows = await conn.fetch(query, *params)
 
-                return StreamingResponse(
-                    io.BytesIO(content),
-                    media_type="application/octet-stream",
-                    headers={"Content-Disposition": f"attachment; filename={filename}"}
-                )
+            logs = []
+            for row in rows:
+                log_entry = {
+                    "user_id": str(row['user_id']) if row['user_id'] else None,
+                    "action": row['action'],
+                    "resource_type": row['resource_type'],
+                    "resource_id": str(row['resource_id']) if row['resource_id'] else None,  # Convert UUID to string
+                    "details": json.loads(row['details']) if isinstance(row['details'], str) else row['details'],
+                    "timestamp": row['timestamp'].isoformat()
+                }
+                logs.append(log_entry)
 
-            except httpx.RequestError as e:
-                logger.error(
-                    "Failed to connect to audit export service",
-                    error=str(e)
-                )
-                raise HTTPException(
-                    status_code=503,
-                    detail="Audit export service unavailable"
-                )
+        # Generate file content based on format
+        filename = f"audit_logs_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.{format}"
+        
+        if format == "json":
+            content = json.dumps({"logs": logs, "exported_at": datetime.now(timezone.utc).isoformat(), "total_records": len(logs)}, indent=2)
+            media_type = "application/json"
+            output = io.BytesIO(content.encode('utf-8'))
+        
+        elif format == "csv":
+            output = io.StringIO()
+            if logs:
+                writer = csv.DictWriter(output, fieldnames=["timestamp", "user_id", "action", "resource_type", "resource_id", "details"])
+                writer.writeheader()
+                for log in logs:
+                    writer.writerow({
+                        "timestamp": log["timestamp"],
+                        "user_id": log["user_id"] or "",
+                        "action": log["action"],
+                        "resource_type": log["resource_type"],
+                        "resource_id": log["resource_id"],
+                        "details": json.dumps(log["details"]) if log["details"] else ""
+                    })
+            media_type = "text/csv"
+            output = io.BytesIO(output.getvalue().encode('utf-8'))
+
+        logger.info("Audit logs exported", format=format, records=len(logs))
+
+        return StreamingResponse(
+            output,
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
 
     except HTTPException:
         raise
@@ -288,15 +338,18 @@ async def export_audit_logs(
         )
         raise HTTPException(
             status_code=500,
-            detail="Failed to export audit logs"
+            detail=f"Failed to export audit logs: {str(e)}"
         )
 
 
 @router.get("/retention")
-async def get_audit_retention_info():
+async def get_audit_retention_info(
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
     """
-    Get information about audit log retention policies
+    Get information about audit log retention policies (Protected - requires JWT)
     """
+    logger.info("Audit retention info accessed", user_id=current_user["id"])
     try:
         retention_info = {
             "medical_audit_retention_years": 7,

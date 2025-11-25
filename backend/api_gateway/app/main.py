@@ -46,13 +46,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set up middleware
+# Set up CORS middleware - MUST be added before other middleware
+# This automatically handles OPTIONS preflight requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.BACKEND_CORS_ORIGINS,  # ["*"] for development
+    allow_credentials=False,  # MUST be False when using "*"
+    allow_methods=["*"],  # Allow all HTTP methods including OPTIONS
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all response headers
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 if not settings.DEBUG:
@@ -63,12 +66,48 @@ if not settings.DEBUG:
 
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    """Add processing time to response headers"""
+async def add_security_headers(request: Request, call_next):
+    """Add security headers and processing time"""
     start_time = time.time()
     response = await call_next(request)
+    
+    # Processing time
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
+    
+    # Security headers for production
+    # Content Security Policy - Prevent XSS attacks
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.auth0.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
+        "img-src 'self' data: https: blob:; "
+        "connect-src 'self' https://*.auth0.com http://localhost:* ws://localhost:*; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    # Clickjacking protection
+    response.headers["X-Frame-Options"] = "DENY"
+    
+    # XSS protection for older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # HTTPS enforcement (production only)
+    if not settings.DEBUG:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    # Permissions policy
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    
     return response
 
 
@@ -144,11 +183,6 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Include routers
-app.include_router(health_router, prefix="/health", tags=["health"])
-app.include_router(api_router, prefix=settings.API_V1_STR)
-
-
 @app.get("/", tags=["root"])
 async def root():
     """Root endpoint"""
@@ -156,8 +190,13 @@ async def root():
         "message": "DocQA-MS API Gateway",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health/"
     }
+
+
+# Include routers
+app.include_router(health_router, prefix="/health", tags=["health"])
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 if __name__ == "__main__":

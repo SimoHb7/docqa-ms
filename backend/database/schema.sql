@@ -8,6 +8,24 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- CORE TABLES (PHASE 1 - ESSENTIAL)
 -- ==========================================
 
+-- Users table (Auth0 integration)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth0_sub VARCHAR(255) UNIQUE NOT NULL, -- Auth0 subject identifier (sub claim)
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    nickname VARCHAR(100),
+    picture VARCHAR(500), -- URL to user's profile picture
+    role VARCHAR(50) DEFAULT 'clinician', -- clinician, admin, researcher, etc.
+    permissions JSONB DEFAULT '[]'::jsonb, -- Array of permission strings
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP WITH TIME ZONE,
+    email_verified BOOLEAN DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb, -- Additional user metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Documents table (simplified)
 CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -37,7 +55,7 @@ CREATE TABLE document_chunks (
 -- QA Interactions (simplified - no sessions for now)
 CREATE TABLE qa_interactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id VARCHAR(100),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     question TEXT NOT NULL,
     answer TEXT NOT NULL,
     context_documents UUID[], -- Array of document_ids used
@@ -50,7 +68,7 @@ CREATE TABLE qa_interactions (
 -- Audit logs (simplified)
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id VARCHAR(100),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     resource_type VARCHAR(50),
     resource_id UUID,
@@ -101,6 +119,10 @@ CREATE TABLE audit_logs (
 -- ==========================================
 
 -- Essential indexes for Phase 1
+CREATE INDEX idx_users_auth0_sub ON users(auth0_sub);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE INDEX idx_documents_upload_date ON documents(upload_date DESC);
 CREATE INDEX idx_documents_status ON documents(processing_status);
 CREATE INDEX idx_documents_anonymized ON documents(is_anonymized);
