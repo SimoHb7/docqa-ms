@@ -47,7 +47,7 @@ async def check_rabbitmq() -> Dict[str, Any]:
 async def check_service(url: str, service_name: str) -> Dict[str, Any]:
     """Check microservice health"""
     try:
-        async with httpx.AsyncClient(timeout=settings.HEALTH_CHECK_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=settings.HEALTH_CHECK_TIMEOUT, follow_redirects=True) as client:
             response = await client.get(f"{url}/health")
             if response.status_code == 200:
                 return {"status": "healthy", "message": f"{service_name} is responding"}
@@ -58,7 +58,7 @@ async def check_service(url: str, service_name: str) -> Dict[str, Any]:
         return {"status": "unhealthy", "message": f"{service_name} connection failed: {str(e)}"}
 
 
-@router.get("/")
+@router.get("/health")
 async def health_check() -> Dict[str, Any]:
     """
     Comprehensive health check for all system components
@@ -79,12 +79,11 @@ async def health_check() -> Dict[str, Any]:
 
     # Check microservices
     services_to_check = [
-        (settings.DOC_INGESTOR_URL, "doc-ingestor"),
-        (settings.DEID_URL, "deid"),
-        (settings.INDEXER_SEMANTIQUE_URL, "indexer-semantique"),
-        (settings.LLM_QA_URL, "llm-qa"),
-        (settings.SYNTHESE_COMPARATIVE_URL, "synthese-comparative"),
-        (settings.AUDIT_LOGGER_URL, "audit-logger"),
+        ("http://doc-ingestor:8001", "doc-ingestor"),
+        ("http://deid:8002", "deid"),
+        ("http://indexer-semantique:8003", "indexer-semantique"),
+        ("http://llm-qa:8004", "llm-qa"),
+        ("http://synthese-comparative:8005", "synthese-comparative"),
     ]
 
     # Run all service checks concurrently

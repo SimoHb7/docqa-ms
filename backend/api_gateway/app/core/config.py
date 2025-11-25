@@ -22,9 +22,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS Configuration
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
-        "http://localhost:3000",  # React dev server
-        "http://localhost:8000",  # API Gateway
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "*",  # Allow all origins for development
     ]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
@@ -62,7 +61,7 @@ class Settings(BaseSettings):
     DEID_URL: str = "http://localhost:8002"
     INDEXER_SEMANTIQUE_URL: str = "http://localhost:8003"
     LLM_QA_URL: str = "http://localhost:8004"
-    SYNTHESE_COMPARATIVE_URL: str = "http://localhost:8005"
+    SYNTHESE_COMPARATIVE_URL: str = "http://host.docker.internal:8005"
     AUDIT_LOGGER_URL: str = "http://localhost:8006"
 
     # File Upload Configuration
@@ -74,6 +73,19 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str = "your-32-character-encryption-key"
     JWT_SECRET_KEY: str = "your-jwt-secret-key"
     JWT_ALGORITHM: str = "HS256"
+
+    # Auth0 Configuration
+    AUTH0_DOMAIN: str = "dev-rwicnayrjuhx63km.us.auth0.com"
+    AUTH0_CLIENT_ID: str = ""
+    AUTH0_AUDIENCE: str = "https://api.interfaceclinique.com"
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # PostgreSQL Configuration (for user management)
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "docqa_ms"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
 
     # Logging Configuration
     LOG_LEVEL: str = "INFO"

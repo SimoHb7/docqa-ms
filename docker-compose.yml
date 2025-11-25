@@ -1,5 +1,4 @@
 # DocQA-MS Docker Compose Configuration
-# Simplified for student project - only essential services for Phase 1
 
 services:
   # Database
@@ -47,6 +46,12 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - DOC_INGESTOR_URL=http://doc-ingestor:8001
+      - DEID_URL=http://deid:8002
+      - INDEXER_SEMANTIQUE_URL=http://indexer-semantique:8003
+      - LLM_QA_URL=http://llm-qa:8004
+      - SYNTHESE_COMPARATIVE_URL=http://synthese-comparative:8005
+      - AUDIT_LOGGER_URL=http://audit-logger:8006
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,109 +65,123 @@ services:
   # ==========================================
 
   # Document Ingestor Service - EL-BELAIDI
-  # doc-ingestor:
-  #   build:
-  #     context: ./backend/doc_ingestor
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./data:/app/data:ro
-  #     - ./backend/shared:/app/shared:ro
+  doc-ingestor:
+    build:
+      context: ./backend/doc_ingestor
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data:ro
+      - ./backend/shared:/app/shared:ro
 
   # De-identification Service - LAHBARI
-  # deid:
-  #   build:
-  #     context: ./backend/deid
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  deid:
+    build:
+      context: ./backend/deid
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # Semantic Indexer Service - ELMANSOR
-  # indexer-semantique:
-  #   build:
-  #     context: ./backend/indexer_semantique
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     chromadb:
-  #       condition: service_started
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  indexer-semantique:
+    build:
+      context: ./backend/indexer_semantique
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - TRANSFORMERS_CACHE=/app/model_cache
+      - HF_HOME=/app/model_cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
+      - ./data/vectors:/app/data/vectors  # Persist FAISS index
+      - indexer_model_cache:/app/model_cache  # Persist embedding models
 
   # LLM QA Service - LAHBARI
-  # llm-qa:
-  #   build:
-  #     context: ./backend/llm_qa
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #     - OLLAMA_BASE_URL=http://ollama:11434
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
-  #     - ./backend/llm_qa/config:/app/config:ro
+  llm-qa:
+    build:
+      context: ./backend/llm_qa
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # ==========================================
   # PHASE 2 SERVICES (IMPLEMENT LATER)
   # ==========================================
 
   # Comparative Synthesis Service
-  # synthese-comparative:
-  #   build:
-  #     context: ./backend/synthese_comparative
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  synthese-comparative:
+    build:
+      context: ./backend/synthese_comparative
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # Audit Logger Service
-  # audit-logger:
-  #   build:
-  #     context: ./backend/audit_logger
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
-  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./backend/shared:/app/shared:ro
+  audit-logger:
+    build:
+      context: ./backend/audit_logger
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./backend/shared:/app/shared:ro
 
   # ==========================================
   # FRONTEND (IMPLEMENT LATER - PHASE 2)
@@ -195,3 +214,4 @@ volumes:
   postgres_data:
   rabbitmq_data:
   ollama_data:
+  indexer_model_cache:  # Cache for sentence-transformers models

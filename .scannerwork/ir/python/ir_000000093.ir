@@ -1,0 +1,87 @@
+
+"total_chunks"str
+"is_trained"str
+
+	0int
+"total_vectors"str
+"IndexFlatIP"str
+falsebool
+"Get index statistics"str
+"dimension"str
+"index_type"strself
+é é("­&
+$
+
+ë ñ(	"#new-object#Bdict(
+&
+
+ì2 ì(<"#get-field# index:+
+)
+
+ì2 ì(<"
+__bool__*:BboolH,"*
+
+ì2 ì(< *
+ì/ ì(12
+ì= ì(A"i(
+&
+
+ì ì('"#get-field# index:)
+'
+
+ì ì(."#get-field# ntotal:
+
+ì ì(C"
+
+ì ì(C"²*
+	"
+ 
+
+ì ì(C"	#map-set#:
++
+)
+
+í  í(-"#get-field# metadata:,
+*
+
+í í(."
+builtinslen*:Bint"
+ 
+
+í í(."	#map-set#:,
+*
+
+î î('"#get-field# dimension:"
+ 
+
+î î('"	#map-set#:"
+ 
+
+ï ï('"	#map-set#:(
+&
+
+ðF ð(P"#get-field# index:+
+)
+
+ðF ð(P"
+__bool__*:BboolH,"*
+
+ðF ð(P *
+ðC ð(E2
+ðQ ð(U"m(
+&
+
+ð" ð(,"#get-field# index:-
++
+
+ð ð(B"
+builtinsgetattr*:
+
+ð ð(["
+
+ð ð(["J*"
+ 
+
+ð ð(["	#map-set#:
+
+ë ñ(	*?C:\docqa-ms\backend\indexer_semantique\app\core\vector_store.py
