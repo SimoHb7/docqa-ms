@@ -1,0 +1,195 @@
+version: '3.8'
+
+services:
+  # Database for testing
+  postgres-test:
+    image: postgres:15
+    container_name: docqa-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/database/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Message queue for testing
+  rabbitmq-test:
+    image: rabbitmq:3-management
+    container_name: docqa-rabbitmq-test
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # API Gateway for testing
+  api-gateway-test:
+    build:
+      context: ./backend/api_gateway
+      dockerfile: Dockerfile
+    container_name: docqa-api-gateway-test
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq-test:5672/
+      - REDIS_URL=redis://redis-test:6379
+      - DEBUG=true
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      rabbitmq-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - test-network
+
+  # Document Ingestor
+  doc-ingestor-test:
+    build:
+      context: ./backend/doc_ingestor
+      dockerfile: Dockerfile
+    container_name: docqa-doc-ingestor-test
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq-test:5672/
+    depends_on:
+      - postgres-test
+      - rabbitmq-test
+    networks:
+      - test-network
+
+  # DeID Service
+  deid-test:
+    build:
+      context: ./backend/deid
+      dockerfile: Dockerfile
+    container_name: docqa-deid-test
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+    depends_on:
+      - postgres-test
+    networks:
+      - test-network
+
+  # Semantic Indexer
+  indexer-semantique-test:
+    build:
+      context: ./backend/indexer_semantique
+      dockerfile: Dockerfile
+    container_name: docqa-indexer-test
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq-test:5672/
+    depends_on:
+      - postgres-test
+      - rabbitmq-test
+    networks:
+      - test-network
+
+  # LLM Q&A Service
+  llm-qa-test:
+    build:
+      context: ./backend/llm_qa
+      dockerfile: Dockerfile
+    container_name: docqa-llm-qa-test
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      - postgres-test
+    networks:
+      - test-network
+
+  # Synthesis Service
+  synthese-comparative-test:
+    build:
+      context: ./backend/synthese_comparative
+      dockerfile: Dockerfile
+    container_name: docqa-synthese-test
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+    depends_on:
+      - postgres-test
+    networks:
+      - test-network
+
+  # Audit Logger
+  audit-logger-test:
+    build:
+      context: ./backend/audit_logger
+      dockerfile: Dockerfile
+    container_name: docqa-audit-logger-test
+    restart: unless-stopped
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://testuser:testpass@postgres-test:5432/test_db
+    depends_on:
+      - postgres-test
+    networks:
+      - test-network
+
+  # Frontend for E2E testing
+  frontend-test:
+    build:
+      context: ./InterfaceClinique
+      dockerfile: Dockerfile
+    container_name: docqa-frontend-test
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - api-gateway-test
+    networks:
+      - test-network
+
+volumes:
+  postgres_test_data:
+
+networks:
+  test-network:
+    driver: bridge

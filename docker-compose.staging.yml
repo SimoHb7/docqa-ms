@@ -1,0 +1,235 @@
+version: '3.8'
+
+services:
+  # Database for staging
+  postgres-staging:
+    image: postgres:15
+    container_name: docqa-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: staging_db
+      POSTGRES_USER: staging_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/database/seed_data.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_user -d staging_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging-network
+
+  # Redis for caching and sessions
+  redis-staging:
+    image: redis:7-alpine
+    container_name: docqa-redis-staging
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_staging_data:/data
+    networks:
+      - staging-network
+
+  # Message queue for staging
+  rabbitmq-staging:
+    image: rabbitmq:3-management
+    container_name: docqa-rabbitmq-staging
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    volumes:
+      - rabbitmq_staging_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - staging-network
+
+  # API Gateway
+  api-gateway-staging:
+    build:
+      context: ./backend/api_gateway
+      dockerfile: Dockerfile
+    container_name: docqa-api-gateway-staging
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq-staging:5672/
+      - REDIS_URL=redis://redis-staging:6379
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN}
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - AUTH0_CLIENT_SECRET=${AUTH0_CLIENT_SECRET}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - ENVIRONMENT=staging
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      rabbitmq-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - staging-network
+
+  # Document Ingestor
+  doc-ingestor-staging:
+    build:
+      context: ./backend/doc_ingestor
+      dockerfile: Dockerfile
+    container_name: docqa-doc-ingestor-staging
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq-staging:5672/
+    depends_on:
+      - postgres-staging
+      - rabbitmq-staging
+    networks:
+      - staging-network
+
+  # DeID Service
+  deid-staging:
+    build:
+      context: ./backend/deid
+      dockerfile: Dockerfile
+    container_name: docqa-deid-staging
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+    depends_on:
+      - postgres-staging
+    networks:
+      - staging-network
+
+  # Semantic Indexer
+  indexer-semantique-staging:
+    build:
+      context: ./backend/indexer_semantique
+      dockerfile: Dockerfile
+    container_name: docqa-indexer-staging
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq-staging:5672/
+    depends_on:
+      - postgres-staging
+      - rabbitmq-staging
+    networks:
+      - staging-network
+
+  # LLM Q&A Service
+  llm-qa-staging:
+    build:
+      context: ./backend/llm_qa
+      dockerfile: Dockerfile
+    container_name: docqa-llm-qa-staging
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      - postgres-staging
+    networks:
+      - staging-network
+
+  # Synthesis Service
+  synthese-comparative-staging:
+    build:
+      context: ./backend/synthese_comparative
+      dockerfile: Dockerfile
+    container_name: docqa-synthese-staging
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+    depends_on:
+      - postgres-staging
+    networks:
+      - staging-network
+
+  # Audit Logger
+  audit-logger-staging:
+    build:
+      context: ./backend/audit_logger
+      dockerfile: Dockerfile
+    container_name: docqa-audit-logger-staging
+    restart: unless-stopped
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+    depends_on:
+      - postgres-staging
+    networks:
+      - staging-network
+
+  # ML Service (if present)
+  ml-service-staging:
+    build:
+      context: ./backend/ml_service
+      dockerfile: Dockerfile
+    container_name: docqa-ml-service-staging
+    restart: unless-stopped
+    ports:
+      - "8007:8007"
+    environment:
+      - DATABASE_URL=postgresql://staging_user:${POSTGRES_PASSWORD}@postgres-staging:5432/staging_db
+    depends_on:
+      - postgres-staging
+    networks:
+      - staging-network
+
+  # Frontend
+  frontend-staging:
+    build:
+      context: ./InterfaceClinique
+      dockerfile: Dockerfile
+    container_name: docqa-frontend-staging
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_ENVIRONMENT=staging
+    depends_on:
+      - api-gateway-staging
+    networks:
+      - staging-network
+
+volumes:
+  postgres_staging_data:
+  redis_staging_data:
+  rabbitmq_staging_data:
+
+networks:
+  staging-network:
+    driver: bridge
