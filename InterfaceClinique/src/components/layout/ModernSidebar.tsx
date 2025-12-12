@@ -11,6 +11,7 @@ import {
   Logout as LogoutIcon,
   LocalHospital as HospitalIcon,
   Close as CloseIcon,
+  AutoAwesome as MLIcon,
 } from '@mui/icons-material';
 
 interface ModernSidebarProps {
@@ -25,6 +26,7 @@ const menuItems = [
   { title: 'Importer', path: '/upload', icon: <UploadIcon /> },
   { title: 'Q&A Chat', path: '/qa', icon: <ChatIcon /> },
   { title: 'Analyses', path: '/synthesis', icon: <AnalyticsIcon /> },
+  { title: 'ML Analytics', path: '/ml-analytics', icon: <MLIcon /> },
   { title: 'Paramètres', path: '/settings', icon: <SettingsIcon /> },
 ];
 

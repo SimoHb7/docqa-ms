@@ -22,8 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
-# Create directories
-RUN mkdir -p saved_models data logs
+# Create directories with proper permissions
+RUN mkdir -p saved_models data logs model_cache && \
+    chmod -R 777 saved_models data logs model_cache
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash mluser && \
