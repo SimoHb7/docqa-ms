@@ -51,7 +51,8 @@ services:
       - INDEXER_SEMANTIQUE_URL=http://indexer-semantique:8003
       - LLM_QA_URL=http://llm-qa:8004
       - SYNTHESE_COMPARATIVE_URL=http://synthese-comparative:8005
-      - AUDIT_LOGGER_URL=http://audit-logger:8006
+      - ML_SERVICE_URL=http://ml-service:8000
+      # - AUDIT_LOGGER_URL=http://audit-logger:8006
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,23 +166,59 @@ services:
     volumes:
       - ./backend/shared:/app/shared:ro
 
-  # Audit Logger Service
-  audit-logger:
+  # ML Service - Machine Learning / Deep Learning
+  ml-service:
     build:
-      context: ./backend/audit_logger
+      context: ./backend/ml_service
       dockerfile: Dockerfile
+    container_name: ml-service
     ports:
-      - "8006:8006"
+      - "8006:8000"
     environment:
+      - CLASSIFIER_USE_PRETRAINED=true
+      - CLASSIFIER_PRETRAINED_MODEL=camembert-base
+      - CLASSIFIER_MODEL_PATH=saved_models/document_classifier_model
+      - NER_USE_PRETRAINED=true
+      - NER_PRETRAINED_MODEL=dmis-lab/biobert-v1.1
+      - NER_MODEL_PATH=saved_models/medical_ner_model
+      - DEVICE=cpu
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - TRANSFORMERS_CACHE=/app/model_cache
+      - HF_HOME=/app/model_cache
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     volumes:
+      - ./backend/ml_service/saved_models:/app/saved_models:ro
       - ./backend/shared:/app/shared:ro
+      - ml_model_cache:/app/model_cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Audit Logger Service (commented out - requires internet to build)
+  # audit-logger:
+  #   build:
+  #     context: ./backend/audit_logger
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8006:8006"
+  #   environment:
+  #     - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
+  #     - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./backend/shared:/app/shared:ro
 
   # ==========================================
   # FRONTEND (IMPLEMENT LATER - PHASE 2)
@@ -215,3 +252,4 @@ volumes:
   rabbitmq_data:
   ollama_data:
   indexer_model_cache:  # Cache for sentence-transformers models
+  ml_model_cache:  # Cache for ML models (PyTorch, Transformers)

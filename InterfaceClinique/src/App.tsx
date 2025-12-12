@@ -25,6 +25,7 @@ const QAChat = lazy(() => import('./pages/QAChat'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AuditLogs = lazy(() => import('./pages/AuditLogs'));
 const ModernSynthesis = lazy(() => import('./pages/ModernSynthesis'));
+const MLAnalytics = lazy(() => import('./pages/MLAnalytics'));
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -104,6 +105,11 @@ const AppRouter = () => {
           <Route path="synthesis" element={
             <Suspense fallback={<LoadingSpinner />}>
               <ModernSynthesis />
+            </Suspense>
+          } />
+          <Route path="ml-analytics" element={
+            <Suspense fallback={<LoadingSpinner />}>
+              <MLAnalytics />
             </Suspense>
           } />
           <Route path="audit" element={

@@ -249,6 +249,59 @@ export const healthApi = {
     api.get<{ status: string; timestamp: string; services: Record<string, string> }>('/health'),
 };
 
+// ML Service API - port 8006
+const ML_BASE_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8006/api/v1';
+
+export const mlApi = {
+  // Health check
+  health: async (): Promise<import('../types').MLHealthResponse> => {
+    const response = await fetch(`http://localhost:8006/health`);
+    return response.json();
+  },
+
+  // Document classification
+  classify: async (request: import('../types').MLClassificationRequest): Promise<import('../types').MLClassificationResponse> => {
+    const response = await fetch(`${ML_BASE_URL}/classify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return response.json();
+  },
+
+  // Entity extraction
+  extractEntities: async (request: import('../types').MLEntityExtractionRequest): Promise<import('../types').MLEntityExtractionResponse> => {
+    const response = await fetch(`${ML_BASE_URL}/extract-entities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    return response.json();
+  },
+
+  // Full analysis (classification + entities)
+  analyze: async (request: import('../types').MLAnalyzeRequest): Promise<import('../types').MLAnalyzeResponse> => {
+    const response = await fetch(`${ML_BASE_URL}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Erreur inconnue' }));
+      throw new Error(error.detail || `HTTP error ${response.status}`);
+    }
+    
+    return response.json();
+  },
+
+  // Get model info
+  getModelInfo: async (): Promise<import('../types').MLModelInfo[]> => {
+    const response = await fetch(`${ML_BASE_URL}/models/info`);
+    return response.json();
+  },
+};
+
 // Error handling utility
 export const handleApiError = (error: any): ApiError => {
   if (error.response?.data?.error) {

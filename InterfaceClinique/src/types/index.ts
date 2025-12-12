@@ -315,3 +315,59 @@ export interface SynthesisProgressUpdate extends WebSocketMessage {
     message?: string;
   };
 }
+
+// ML Service types
+export interface MLClassificationRequest {
+  text: string;
+}
+
+export interface MLClassificationResponse {
+  predicted_class: string;
+  confidence: number;
+  all_probabilities: Record<string, number>;
+  model_used: 'pretrained' | 'finetuned';
+}
+
+export interface MLEntity {
+  text: string;
+  label: string;
+  confidence: number;
+  start?: number;
+  end?: number;
+}
+
+export interface MLEntityExtractionRequest {
+  text: string;
+}
+
+export interface MLEntityExtractionResponse {
+  value: MLEntity[];
+  Count: number;
+}
+
+export interface MLAnalyzeRequest {
+  text: string;
+  extract_entities?: boolean;
+  classify?: boolean;
+}
+
+export interface MLAnalyzeResponse {
+  classification?: MLClassificationResponse;
+  entities?: MLEntityExtractionResponse;
+  processing_time_ms: number;
+}
+
+export interface MLHealthResponse {
+  status: string;
+  service: string;
+  version: string;
+  models_loaded: boolean;
+}
+
+export interface MLModelInfo {
+  name: string;
+  type: 'classification' | 'ner';
+  status: 'loaded' | 'loading' | 'error';
+  model_path: string;
+  is_pretrained: boolean;
+}

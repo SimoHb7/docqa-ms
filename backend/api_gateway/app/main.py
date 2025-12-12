@@ -79,8 +79,8 @@ async def add_security_headers(request: Request, call_next):
     # Content Security Policy - Prevent XSS attacks
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.auth0.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.auth0.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "font-src 'self' data: https://fonts.gstatic.com; "
         "img-src 'self' data: https: blob:; "
         "connect-src 'self' https://*.auth0.com http://localhost:* ws://localhost:*; "
