@@ -26,6 +26,7 @@ import { formatRelativeTime, getProcessingStatusColor } from '../utils';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import CardComponent from '../components/ui/Card';
 
+// Provide a dashboard view of activity on InterfaceClinique
 const Dashboard: React.FC = () => {
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['dashboard-stats'],
