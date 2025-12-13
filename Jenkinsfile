@@ -42,12 +42,29 @@ pipeline {
             }
         }
 
-        stage('Stop Existing Containers') {
+        stage('Prepare Environment') {
             steps {
-                echo '🛑 Stopping any running containers...'
+                echo '🛑 Preparing build environment...'
                 script {
                     bat '''
+                        echo Stopping any running containers...
                         docker compose down --remove-orphans || echo No containers to stop
+                        
+                        echo.
+                        echo Checking for corrupted images...
+                        docker images --filter "dangling=true" -q > dangling.txt
+                        set /p DANGLING_COUNT=<dangling.txt
+                        if defined DANGLING_COUNT (
+                            echo Found dangling images, cleaning up...
+                            docker image prune -f
+                        ) else (
+                            echo No dangling images found
+                        )
+                        del dangling.txt 2>nul
+                        
+                        echo.
+                        echo ✅ Environment ready for build
+                        exit /b 0
                     '''
                 }
             }
@@ -58,23 +75,51 @@ pipeline {
                 echo '🐳 Building all Docker images...'
                 script {
                     bat '''
-                        echo Building all services with Docker Compose...
-                        echo Using cached layers to speed up build...
+                        echo ===== Docker Build Strategy =====
+                        echo Attempting optimized build with cache...
+                        echo.
                         
-                        REM Build with cache and parallel jobs
+                        REM Try parallel build with cache first (fast)
                         docker compose build --parallel
                         
                         if errorlevel 1 (
-                            echo ❌ Docker build failed
-                            echo Checking which service failed...
-                            docker compose config --services
-                            exit /b 1
-                        ) else (
-                            echo ✅ All Docker images built successfully
                             echo.
-                            echo 📊 Image Summary:
-                            docker images --filter "reference=docqa-ms-*" --format "  {{.Repository}}:{{.Tag}} - {{.Size}}"
+                            echo ⚠️ Parallel build failed, trying sequential build...
+                            echo.
+                            
+                            REM Try sequential build with cache
+                            docker compose build
+                            
+                            if errorlevel 1 (
+                                echo.
+                                echo ⚠️ Cached build failed, rebuilding from scratch...
+                                echo This will take longer but ensures clean build.
+                                echo.
+                                
+                                REM Last resort: clean build without cache
+                                docker compose build --no-cache --progress=plain
+                                
+                                if errorlevel 1 (
+                                    echo.
+                                    echo ❌ BUILD COMPLETELY FAILED
+                                    echo.
+                                    echo Checking service configuration...
+                                    docker compose config --services
+                                    echo.
+                                    echo Checking for build errors in last 50 lines...
+                                    docker compose logs --tail=50
+                                    exit /b 1
+                                )
+                            )
                         )
+                        
+                        echo.
+                        echo ✅ All Docker images built successfully
+                        echo.
+                        echo 📊 Built Images:
+                        docker images --filter "reference=docqa-ms-*" --format "  ✓ {{.Repository}}:{{.Tag}} ({{.Size}})"
+                        echo.
+                        exit /b 0
                     '''
                 }
             }
