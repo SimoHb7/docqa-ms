@@ -105,7 +105,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           }}
           onClick={() => navigate('/dashboard')}
         >
-          InterfaceClinique
+          DocQA
         </Typography>
 
         {/* Right side actions */}

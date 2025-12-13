@@ -83,7 +83,7 @@ export default function ModernSidebar({ open, onClose, isMobile }: ModernSidebar
             <HospitalIcon sx={{ color: 'white', fontSize: 24 }} />
           </Box>
           <Typography variant="h6" fontWeight={700} color="primary">
-            InterfaceClinique
+            DocQA
           </Typography>
         </Box>
         {isMobile && (

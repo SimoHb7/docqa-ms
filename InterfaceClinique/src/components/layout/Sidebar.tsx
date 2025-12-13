@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       {/* Logo/Brand */}
       <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
         <Typography variant="h6" component="div" sx={{ fontWeight: 700, color: 'primary.main' }}>
-          InterfaceClinique
+          DocQA
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Système Q&R Médical

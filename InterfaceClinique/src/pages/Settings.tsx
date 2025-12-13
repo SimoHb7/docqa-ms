@@ -187,7 +187,7 @@ const Settings: React.FC = () => {
           <CardContent>
             <Box display="flex" flexDirection="column" gap={1}>
               <Typography variant="body2">
-                <strong>Version:</strong> InterfaceClinique v1.0.0
+                <strong>Version:</strong> DocQA v1.0.0
               </Typography>
               <Typography variant="body2">
                 <strong>Backend:</strong> DocQA-MS API Gateway

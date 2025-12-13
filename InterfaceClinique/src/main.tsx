@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: window.location.origin,
+        redirect_uri: 'http://localhost:3000',
         ...(audience && { audience }), // Only add audience if defined
         scope: 'openid profile email',
       }}

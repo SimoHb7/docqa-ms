@@ -39,7 +39,7 @@ const Auth0SetupGuide: React.FC<Auth0SetupGuideProps> = () => {
       title: "Créer une application",
       description: "Dans le dashboard Auth0, créez une 'Single Page Application'",
       details: [
-        "Nom: InterfaceClinique",
+        "Nom: DocQA",
         "Type: Single Page Application",
       ],
     },
@@ -99,7 +99,7 @@ VITE_AUTH0_AUDIENCE=https://api.interfaceclinique.com`,
             Configuration Auth0
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Suivez ces étapes pour configurer l'authentification Auth0 pour InterfaceClinique
+            Suivez ces étapes pour configurer l'authentification Auth0 pour DocQA
           </Typography>
         </Box>
 

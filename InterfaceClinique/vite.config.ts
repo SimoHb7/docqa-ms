@@ -8,7 +8,7 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    strictPort: false,
+    strictPort: true,
     proxy: {
       // API proxy configuration for development
       '/api': {

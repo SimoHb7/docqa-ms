@@ -90,7 +90,7 @@ const Dashboard: React.FC = () => {
         Tableau de bord
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Vue d'ensemble de votre activité sur InterfaceClinique
+        Vue d'ensemble de votre activité sur DocQA
       </Typography>
 
       {/* Stats Cards */}

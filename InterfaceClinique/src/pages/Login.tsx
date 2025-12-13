@@ -85,6 +85,18 @@ const Login: React.FC = () => {
     });
   };
 
+  const handleGoogleLogin = () => {
+    setIsSubmitting(true);
+    loginWithRedirect({
+      authorizationParams: {
+        connection: 'google-oauth2',
+      },
+      appState: {
+        returnTo: '/dashboard',
+      },
+    });
+  };
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -136,115 +148,167 @@ const Login: React.FC = () => {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
         bgcolor: 'background.default',
-        p: { xs: 2, sm: 3 },
-        background: `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
-        position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Background Pattern */}
+      {/* Left Side - Branding (Hidden on Mobile) */}
+      {!isMobile && (
+        <Box
+          sx={{
+            flex: 1,
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 4,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Background Pattern */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.1,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }}
+          />
+
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.8, type: 'spring' }}
+          >
+            <Box
+              sx={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mb: 3,
+                boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+              }}
+            >
+              <MedicalIcon sx={{ fontSize: 50, color: 'white' }} />
+            </Box>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <Typography
+              variant="h4"
+              component="h1"
+              gutterBottom
+              fontWeight={700}
+              sx={{ color: 'white', textAlign: 'center', mb: 1.5 }}
+            >
+              DocQA
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{ color: 'rgba(255,255,255,0.9)', textAlign: 'center', mb: 3, maxWidth: 450, fontSize: '1rem' }}
+            >
+              Plateforme intelligente de gestion et d'analyse de documents médicaux
+            </Typography>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.6 }}
+          >
+            <Box sx={{ display: 'flex', gap: 3, mt: 4 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <LocalHospital sx={{ fontSize: 36, color: 'rgba(255,255,255,0.9)', mb: 0.5 }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>
+                  Documents Sécurisés
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Shield sx={{ fontSize: 36, color: 'rgba(255,255,255,0.9)', mb: 0.5 }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>
+                  Authentification
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Timeline sx={{ fontSize: 36, color: 'rgba(255,255,255,0.9)', mb: 0.5 }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>
+                  Analyse IA
+                </Typography>
+              </Box>
+            </Box>
+          </motion.div>
+        </Box>
+      )}
+
+      {/* Right Side - Login Form */}
       <Box
         sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 0.03,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-
-      {/* Floating Icons */}
-      <Box sx={{ position: 'absolute', top: '10%', right: '10%', opacity: 0.1 }}>
-        <LocalHospital sx={{ fontSize: 48, color: 'primary.main' }} />
-      </Box>
-      <Box sx={{ position: 'absolute', bottom: '15%', left: '8%', opacity: 0.1 }}>
-        <Shield sx={{ fontSize: 40, color: 'secondary.main' }} />
-      </Box>
-      <Box sx={{ position: 'absolute', top: '60%', right: '15%', opacity: 0.1 }}>
-        <Timeline sx={{ fontSize: 36, color: 'success.main' }} />
-      </Box>
-
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: isMobile ? 380 : 450,
-          zIndex: 1,
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: { xs: 2, sm: 3, md: 4 },
+          bgcolor: 'background.default',
+          minHeight: { xs: '100vh', md: 'auto' },
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <Paper
-            elevation={isMobile ? 4 : 12}
-            sx={{
-              p: { xs: 3, sm: 4, md: 5 },
-              borderRadius: isMobile ? 3 : 4,
-              position: 'relative',
-              overflow: 'hidden',
-              background: `linear-gradient(145deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.paper}F0 100%)`,
-              backdropFilter: 'blur(10px)',
-              border: `1px solid ${theme.palette.divider}40`,
-            }}
+        <Box sx={{ width: '100%', maxWidth: 480 }}>
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
           >
-            {/* Logo and Title */}
-            <Box textAlign="center" mb={4}>
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-              >
+            {/* Mobile Logo (Only on Mobile) */}
+            {isMobile && (
+              <Box textAlign="center" mb={3}>
                 <Box
                   sx={{
-                    width: 80,
-                    height: 80,
+                    width: 60,
+                    height: 60,
                     borderRadius: '50%',
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     mx: 'auto',
-                    mb: 3,
-                    boxShadow: `0 8px 32px ${theme.palette.primary.main}30`,
+                    mb: 2,
                   }}
                 >
-                  <MedicalIcon sx={{ fontSize: 40, color: 'white' }} />
+                  <MedicalIcon sx={{ fontSize: 30, color: 'white' }} />
                 </Box>
-              </motion.div>
+                <Typography variant="h6" fontWeight={700} sx={{ 
+                  background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                  DocQA
+                </Typography>
+              </Box>
+            )}
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-              >
-                <Typography
-                  variant={isMobile ? "h5" : "h4"}
-                  component="h1"
-                  gutterBottom
-                  fontWeight={700}
-                  sx={{
-                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  InterfaceClinique
-                </Typography>
-                <Typography
-                  variant="body1"
-                  color="text.secondary"
-                  sx={{ fontSize: isMobile ? '0.9rem' : '1rem' }}
-                >
-                  Système professionnel de Q&R sur documents médicaux
-                </Typography>
-              </motion.div>
+            {/* Welcome Text */}
+            <Box mb={3}>
+              <Typography variant="h5" fontWeight={700} gutterBottom color="text.primary">
+                Bienvenue
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Connectez-vous pour accéder à votre espace
+              </Typography>
             </Box>
 
             {/* Error Messages */}
@@ -263,179 +327,186 @@ const Login: React.FC = () => {
               </Alert>
             </Fade>
 
-            {/* Auth0 Login Button */}
+            {/* Social Login Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.5 }}
             >
+              {/* Google Login Button */}
               <Button
                 fullWidth
                 variant="contained"
                 size="large"
-                onClick={handleAuth0Login}
+                onClick={handleGoogleLogin}
                 disabled={isSubmitting}
                 sx={{
-                  mb: 3,
-                  py: isMobile ? 1.5 : 2,
-                  fontSize: isMobile ? '1rem' : '1.1rem',
+                  py: 1.5,
+                  fontSize: '0.95rem',
                   fontWeight: 600,
-                  borderRadius: 3,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                  boxShadow: `0 4px 20px ${theme.palette.primary.main}40`,
+                  borderRadius: 2,
+                  background: '#fff',
+                  color: '#3c4043',
+                  border: '1.5px solid #dadce0',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  textTransform: 'none',
                   '&:hover': {
-                    background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                    boxShadow: `0 6px 25px ${theme.palette.primary.main}50`,
-                    transform: 'translateY(-2px)',
+                    background: '#f8f9fa',
+                    border: '1.5px solid #d0d0d0',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
                   },
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.2s ease',
                 }}
               >
                 {isSubmitting ? (
-                  <CircularProgress size={24} color="inherit" />
+                  <CircularProgress size={24} sx={{ color: '#1976d2' }} />
                 ) : (
-                  <>
-                    <Shield sx={{ mr: 1, fontSize: 20 }} />
-                    Se connecter avec Auth0
-                  </>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <svg width="20" height="20" viewBox="0 0 48 48">
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span>Continuer avec Google</span>
+                  </Box>
                 )}
+              </Button>
+
+              {/* Auth0 Other Methods Button */}
+              <Button
+                fullWidth
+                variant="outlined"
+                size="large"
+                onClick={handleAuth0Login}
+                disabled={isSubmitting}
+                sx={{
+                  mt: 1.5,
+                  py: 1.5,
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  borderColor: theme.palette.divider,
+                  color: 'text.primary',
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    background: `${theme.palette.primary.main}05`,
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Shield sx={{ mr: 1.5, fontSize: 20 }} />
+                Autres méthodes de connexion
               </Button>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: 'divider' } }}>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    px: 2,
-                    backgroundColor: 'background.paper',
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  ou continuer avec
-                </Typography>
-              </Divider>
-            </motion.div>
+            {/* Divider */}
+            <Box sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
+              <Divider sx={{ flex: 1 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ px: 2, fontWeight: 500, fontSize: '0.85rem' }}>
+                ou avec email
+              </Typography>
+              <Divider sx={{ flex: 1 }} />
+            </Box>
 
-            {/* Traditional Login Form */}
+            {/* Email/Password Form */}
             <Box component="form" onSubmit={handleSubmit}>
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6, duration: 0.5 }}
-              >
-                <TextField
-                  fullWidth
-                  label="Adresse email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  margin="normal"
-                  required
-                  autoComplete="email"
-                  autoFocus={!isMobile}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Email color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main',
-                      },
+              <TextField
+                fullWidth
+                label="Adresse email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                margin="dense"
+                autoComplete="email"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Email sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
                     },
-                  }}
-                />
-              </motion.div>
+                  },
+                }}
+              />
 
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7, duration: 0.5 }}
-              >
-                <TextField
-                  fullWidth
-                  label="Mot de passe"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  margin="normal"
-                  required
-                  autoComplete="current-password"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Lock color="action" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label="toggle password visibility"
-                          onClick={togglePasswordVisibility}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main',
-                      },
+              <TextField
+                fullWidth
+                label="Mot de passe"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                margin="dense"
+                autoComplete="current-password"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={togglePasswordVisibility}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
                     },
-                  }}
-                />
-              </motion.div>
+                  },
+                }}
+              />
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.5 }}
-              >
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="outlined"
-                  size="large"
-                  disabled={isSubmitting}
-                  sx={{
-                    mt: 3,
-                    mb: 2,
-                    py: isMobile ? 1.5 : 2,
-                    fontSize: isMobile ? '1rem' : '1.1rem',
-                    fontWeight: 600,
-                    borderRadius: 3,
-                    borderWidth: 2,
-                    '&:hover': {
-                      borderWidth: 2,
-                      backgroundColor: 'primary.main',
-                      color: 'primary.contrastText',
-                      transform: 'translateY(-1px)',
-                      boxShadow: `0 4px 20px ${theme.palette.primary.main}30`,
-                    },
-                    transition: 'all 0.3s ease',
-                  }}
+              <Box sx={{ textAlign: 'right', mt: 0.5, mb: 2 }}>
+                <Link
+                  href="#"
+                  variant="body2"
+                  color="primary"
+                  underline="hover"
+                  sx={{ fontWeight: 500, fontSize: '0.8rem' }}
                 >
-                  {isSubmitting ? (
-                    <CircularProgress size={24} />
-                  ) : (
-                    'Se connecter'
-                  )}
-                </Button>
-              </motion.div>
+                  Mot de passe oublié ?
+                </Link>
+              </Box>
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={isSubmitting}
+                sx={{
+                  py: 1.5,
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  boxShadow: `0 3px 10px ${theme.palette.primary.main}40`,
+                  '&:hover': {
+                    boxShadow: `0 4px 15px ${theme.palette.primary.main}50`,
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Se connecter'}
+              </Button>
             </Box>
 
             {/* Footer Links */}
@@ -500,26 +571,27 @@ const Login: React.FC = () => {
             </motion.div>
 
             {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.0, duration: 0.5 }}
-            >
-              <Box
-                textAlign="center"
-                mt={4}
-                pt={2}
-                borderTop={1}
-                borderColor="divider"
-                sx={{ opacity: 0.7 }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  © 2025 InterfaceClinique. Tous droits réservés.
+            <Box textAlign="center" mt={3}>
+              <Typography variant="body2" color="text.secondary">
+                Nouveau sur DocQA ?{' '}
+                <Link
+                  href="#"
+                  color="primary"
+                  underline="hover"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Créer un compte
+                </Link>
+              </Typography>
+              
+              <Box sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                  © 2025 DocQA. Tous droits réservés.
                 </Typography>
               </Box>
-            </motion.div>
-          </Paper>
-        </motion.div>
+            </Box>
+          </motion.div>
+        </Box>
       </Box>
     </Box>
   );
