@@ -97,17 +97,42 @@ const Documents: React.FC = () => {
       console.log('📦 Documents in data array:', result.data?.length);
       return result;
     },
-    placeholderData: (previousData) => previousData, // Keep previous data while loading
-    staleTime: 30000, // Cache for 30 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    refetchInterval: 10000, // Auto-refetch every 10 seconds
+    staleTime: 5000, // Consider data stale after 5 seconds
   });
 
   // Delete document mutation
   const deleteMutation = useMutation({
-    mutationFn: (documentId: string) => documentsApi.delete(documentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    mutationFn: (documentId: string) => {
+      console.log('🗑️ Deleting document:', documentId);
+      return documentsApi.delete(documentId);
+    },
+    onSuccess: async (_, documentId) => {
+      console.log('✅ Document deleted successfully, refreshing list...');
+      
+      // Update cache optimistically - remove document from current page
+      queryClient.setQueryData(
+        ['documents', page, rowsPerPage, filters, debouncedSearch],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((doc: Document) => doc.id !== documentId),
+            total: old.total - 1,
+          };
+        }
+      );
+      
+      // Then invalidate and refetch to get fresh data from server
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
+      
       setDeleteDialogOpen(false);
       setSelectedDocument(null);
+    },
+    onError: (error) => {
+      console.error('❌ Failed to delete document:', error);
+      alert(`Erreur lors de la suppression: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     },
   });
 
@@ -126,16 +151,21 @@ const Documents: React.FC = () => {
   };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, document: Document) => {
+    console.log('📂 Menu opened for document:', document);
+    console.log('📝 Document filename:', document.filename);
+    console.log('🆔 Document ID:', document.id);
     setMenuAnchorEl(event.currentTarget);
     setSelectedDocument(document);
   };
 
   const handleMenuClose = () => {
     setMenuAnchorEl(null);
-    // Don't clear selectedDocument immediately - wait for menu animation to complete
-    setTimeout(() => {
-      setSelectedDocument(null);
-    }, 200);
+    // Don't clear selectedDocument if delete dialog is open
+    if (!deleteDialogOpen) {
+      setTimeout(() => {
+        setSelectedDocument(null);
+      }, 200);
+    }
   };
 
   const handleViewDocument = () => {
@@ -184,15 +214,27 @@ const Documents: React.FC = () => {
   };
 
   const handleDeleteDocument = () => {
+    console.log('🗑️ Delete clicked, selectedDocument:', selectedDocument);
     if (selectedDocument) {
+      console.log('✅ Opening delete dialog for:', selectedDocument.filename);
       setDeleteDialogOpen(true);
+      // Close menu but DON'T clear selectedDocument - we need it for the dialog
+      setMenuAnchorEl(null);
+    } else {
+      console.error('❌ No document selected!');
+      handleMenuClose();
     }
-    handleMenuClose();
   };
 
   const confirmDelete = () => {
+    console.log('💥 Confirm delete clicked, selectedDocument:', selectedDocument);
     if (selectedDocument) {
+      console.log('🚀 Calling delete mutation for ID:', selectedDocument.id);
       deleteMutation.mutate(selectedDocument.id);
+      setDeleteDialogOpen(false);
+      setSelectedDocument(null);
+    } else {
+      console.error('❌ Cannot delete: No document selected!');
     }
   };
 
@@ -579,7 +621,10 @@ const Documents: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedDocument(null);
+        }}
         maxWidth="sm"
         fullWidth
       >

@@ -308,18 +308,17 @@ class DoctorNameRecognizer(PatternRecognizer):
     """
 
     PATTERNS = [
-        # Dr. or Dr followed by name (with or without hyphen, accent marks)
-        # Match title + first name + last name (stop at newline or specific chars)
+        # Dr. or Dr followed by full name (First Last)
         Pattern(
             name="doctor_with_title",
-            regex=r"\b(?:Dr\.?|Docteur|Pr\.?|Professeur)\s+[A-ZÀ-ÿ][a-zà-ÿ\-]+(?:\s+[A-ZÀ-ÿ][A-ZÀ-ÿ\-]+)\b",
-            score=0.9,
+            regex=r"\b(?:Dr\.?|Docteur|Pr\.?|Professeur)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.95,
         ),
         # Médecin/Medecin followed by name
         Pattern(
             name="medecin_with_name",
-            regex=r"\b(?:Médecin|Medecin)\s*:\s*[A-ZÀ-ÿ][a-zà-ÿ\-]+(?:\s+[A-ZÀ-ÿ][A-ZÀ-ÿ\-]+)\b",
-            score=0.85,
+            regex=r"\b(?:Médecin|Medecin)\s*:\s*(?:Dr\.?\s+)?[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.95,
         ),
     ]
 
@@ -335,6 +334,156 @@ class DoctorNameRecognizer(PatternRecognizer):
         context: Optional[List[str]] = None,
         supported_language: str = "fr",
         supported_entity: str = "PERSON",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )
+
+
+class HL7NameRecognizer(PatternRecognizer):
+    """
+    Recognizer for names in HL7 format (e.g., LASTNAME^FIRSTNAME)
+    Common in medical HL7 messages
+    """
+    
+    PATTERNS = [
+        # HL7 format: LASTNAME^FIRSTNAME or LastName^FirstName
+        Pattern(
+            name="hl7_name_format",
+            regex=r"\b([A-ZÀ-Ÿ][a-zà-ÿ]+)\^([A-ZÀ-Ÿ][a-zà-ÿ]+)\b",
+            score=0.9,
+        ),
+        # All caps HL7: LASTNAME^FIRSTNAME
+        Pattern(
+            name="hl7_name_caps",
+            regex=r"\b([A-ZÀ-Ÿ]{2,})\^([A-ZÀ-Ÿ]{2,})\b",
+            score=0.85,
+        ),
+        # With middle name: LAST^FIRST^MIDDLE
+        Pattern(
+            name="hl7_name_with_middle",
+            regex=r"\b([A-ZÀ-Ÿ][a-zà-ÿ]+)\^([A-ZÀ-Ÿ][a-zà-ÿ]+)\^([A-ZÀ-Ÿ][a-zà-ÿ]+)\b",
+            score=0.9,
+        ),
+    ]
+    
+    CONTEXT = [
+        "patient", "nom", "name", "medecin", "docteur", "dr", "infirmier",
+        "PID", "NK1", "OBR", "PV1"  # HL7 segment identifiers
+    ]
+    
+    def __init__(
+        self,
+        patterns: Optional[List[Pattern]] = None,
+        context: Optional[List[str]] = None,
+        supported_language: str = "fr",
+        supported_entity: str = "PERSON",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )
+
+
+class ArabicNameRecognizer(PatternRecognizer):
+    """
+    Recognizer for Arabic names with common prefixes (El, Al, Ben, etc.)
+    Common in North African French medical records
+    
+    Examples:
+    - El Fassi, Al Mansouri, Ben Ali, Bel Hadj
+    """
+    
+    PATTERNS = [
+        # Full name with El/Al prefix (Firstname El Lastname or Firstname Middlename El Lastname)
+        Pattern(
+            name="arabic_full_name_el",
+            regex=r"\b[A-ZÀ-Ÿ][a-zà-ÿ]+\s+(?:[A-ZÀ-Ÿ][a-zà-ÿ]+\s+)?(?:El|Al)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.95,
+        ),
+        # Full name with Ben/Ibn prefix
+        Pattern(
+            name="arabic_full_name_ben",
+            regex=r"\b[A-ZÀ-Ÿ][a-zà-ÿ]+\s+(?:[A-ZÀ-Ÿ][a-zà-ÿ]+\s+)?(?:Ben|Ibn)(?:omar|ali|[a-zà-ÿ]+)\b",
+            score=0.95,
+        ),
+        # El/Al prefix + lastname only
+        Pattern(
+            name="arabic_el_prefix",
+            regex=r"\b(?:El|Al)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.85,
+        ),
+        # Ben/Ibn prefix + lastname only
+        Pattern(
+            name="arabic_ben_prefix", 
+            regex=r"\b(?:Ben|Ibn)(?:omar|ali|[a-zà-ÿ]+)\b",
+            score=0.85,
+        ),
+    ]
+    
+    CONTEXT = [
+        "nom", "nom du patient", "patient", "patiente",
+        "médecin", "medecin", "dr", "docteur",
+        "identité", "identite"
+    ]
+    
+    def __init__(
+        self,
+        patterns: Optional[List[Pattern]] = None,
+        context: Optional[List[str]] = None,
+        supported_language: str = "fr",
+        supported_entity: str = "PERSON",
+    ):
+        patterns = patterns if patterns else self.PATTERNS
+        context = context if context else self.CONTEXT
+        super().__init__(
+            supported_entity=supported_entity,
+            patterns=patterns,
+            context=context,
+            supported_language=supported_language,
+        )
+
+class FullNameRecognizer(PatternRecognizer):
+    """
+    Recognizer for full names after field labels like "Nom :" or "Patient :"
+    Catches patterns like: Nom : Maryam El Fassi
+    """
+    
+    PATTERNS = [
+        # Full name with 3 words (Firstname Middlename Lastname)
+        Pattern(
+            name="full_name_3words",
+            regex=r"\b[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.85,
+        ),
+        # Full name with 4 words (includes El, Al, Ben, etc.)
+        Pattern(
+            name="full_name_4words",
+            regex=r"\b[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+\b",
+            score=0.9,
+        ),
+    ]
+    
+    CONTEXT = [
+        "nom", "patient", "patiente", "m�decin", "medecin", 
+        "docteur", "dr", "identit�", "identite"
+    ]
+    
+    def __init__(
+        self,
+        patterns=None,
+        context=None,
+        supported_language="fr",
+        supported_entity="PERSON",
     ):
         patterns = patterns if patterns else self.PATTERNS
         context = context if context else self.CONTEXT

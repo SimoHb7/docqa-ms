@@ -5,6 +5,22 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large vendor libraries into separate chunks
+          'mui-core': ['@mui/material', '@mui/system'],
+          'mui-icons': ['@mui/icons-material'],
+          'mui-data': ['@mui/x-data-grid', '@mui/x-date-pickers'],
+          'charts': ['chart.js', 'react-chartjs-2', 'recharts'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'auth': ['@auth0/auth0-react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   server: {
     port: 3000,
     host: true,

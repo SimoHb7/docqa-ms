@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useAppStore } from '../store';
+import { useMLAnalyticsStore, useSynthesisStore, useUploadStore } from '../store/pageStores';
 import ButtonComponent from '../components/ui/Button';
 import CardComponent from '../components/ui/Card';
 
@@ -39,6 +40,11 @@ const Settings: React.FC = () => {
     clearNotifications,
   } = useAppStore();
 
+  // Get clear functions from stores
+  const clearMLState = useMLAnalyticsStore((state) => state.clearMLState);
+  const clearSynthesisState = useSynthesisStore((state) => state.clearSynthesisState);
+  const clearFiles = useUploadStore((state) => state.clearFiles);
+
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
@@ -46,6 +52,29 @@ const Settings: React.FC = () => {
   };
 
   const handleLogout = () => {
+    console.log('🔒 SECURITY: Clearing user data before logout...');
+    
+    // Get current user ID
+    const userId = localStorage.getItem('current-user-id');
+    
+    // Clear all Zustand stores (in-memory)
+    clearMLState();
+    clearSynthesisState();
+    clearFiles();
+    
+    // Clear user-specific localStorage keys
+    if (userId) {
+      localStorage.removeItem(`ml-analytics-${userId}`);
+      localStorage.removeItem(`synthesis-${userId}`);
+      console.log(`✅ Cleared storage for user: ${userId}`);
+    }
+    
+    // Clear user ID marker
+    localStorage.removeItem('current-user-id');
+    
+    console.log('✅ All user data cleared, logging out...');
+    
+    // Logout from Auth0
     logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
@@ -212,14 +241,24 @@ const Settings: React.FC = () => {
       >
         <DialogTitle>Confirmer la déconnexion</DialogTitle>
         <DialogContent>
-          <Typography>
-            Êtes-vous sûr de vouloir vous déconnecter ? Vous devrez vous reconnecter pour accéder à nouveau à l'application.
+          <Typography gutterBottom>
+            Êtes-vous sûr de vouloir vous déconnecter ?
           </Typography>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              ⚠️ Toutes vos données de session seront effacées :
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ mt: 1, mb: 0 }}>
+              <li>Synthèses médicales générées</li>
+              <li>Analyses ML en cours</li>
+              <li>Documents en attente d'upload</li>
+            </Typography>
+          </Alert>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmLogout(false)}>Annuler</Button>
           <Button onClick={handleLogout} color="error" variant="contained">
-            Se déconnecter
+            Effacer et se déconnecter
           </Button>
         </DialogActions>
       </Dialog>

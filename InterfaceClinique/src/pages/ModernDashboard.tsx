@@ -260,7 +260,7 @@ export default function ModernDashboard() {
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Total Documents"
             value="248"
@@ -270,7 +270,7 @@ export default function ModernDashboard() {
             color="#1976d2"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Imports ce mois"
             value="32"
@@ -280,7 +280,7 @@ export default function ModernDashboard() {
             color="#2e7d32"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Questions posées"
             value="156"
@@ -290,7 +290,7 @@ export default function ModernDashboard() {
             color="#ed6c02"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Taux de réussite"
             value="94%"
@@ -304,17 +304,17 @@ export default function ModernDashboard() {
 
       {/* Charts Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <ActivityChart />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <DocumentTypesChart />
         </Grid>
       </Grid>
 
       {/* Recent Documents */}
       <Grid container spacing={3}>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <RecentDocuments />
         </Grid>
       </Grid>

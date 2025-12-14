@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Typography,
@@ -36,16 +36,25 @@ import { backendSynthesis } from '../services/backend';
 import { documentsApi } from '../services/api';
 import { formatDate } from '../utils';
 import { SynthesisRequest, SynthesisResponse, Document } from '../types';
+import { useSynthesisStore } from '../store/pageStores';
 
 import ButtonComponent from '../components/ui/Button';
 import CardComponent from '../components/ui/Card';
 
 const ModernSynthesis: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
-  const [synthesisType, setSynthesisType] = useState<'patient_timeline' | 'comparison' | 'summary'>('patient_timeline');
-  const [patientId, setPatientId] = useState('');
-  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
-  const [result, setResult] = useState<SynthesisResponse | null>(null);
+  
+  // Use Zustand store for persistent state across navigation
+  const {
+    synthesisType,
+    setSynthesisType,
+    patientId,
+    setPatientId,
+    selectedDocuments,
+    setSelectedDocuments,
+    result,
+    setResult,
+  } = useSynthesisStore();
 
   // Fetch available documents using proper API client with auth interceptor
   const { data: documentsData, isLoading: loadingDocuments } = useQuery({
@@ -245,51 +254,65 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
     const typeInfo = getSynthesisTypeInfo(synthesisType);
 
     return (
-      <Card sx={{ mt: 3, borderLeft: `4px solid ${typeInfo.color}` }}>
-        <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Box display="flex" alignItems="center" gap={2}>
-              <Box sx={{ color: typeInfo.color }}>{typeInfo.icon}</Box>
-              <Box>
-                <Typography variant="h6" fontWeight={600}>
-                  {data.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Généré le {formatDate(generated_at)} • {execution_time_ms}ms
-                </Typography>
+      <Card sx={{ borderTop: `4px solid ${typeInfo.color}`, boxShadow: 3 }}>
+        <CardContent sx={{ p: 3 }}>
+          {/* Header */}
+          <Box sx={{ mb: 3 }}>
+            <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2}>
+              <Box display="flex" alignItems="flex-start" gap={2} flex={1}>
+                <Box sx={{ 
+                  p: 1.5, 
+                  borderRadius: 2, 
+                  bgcolor: `${typeInfo.color}20`,
+                  color: typeInfo.color,
+                  display: 'flex'
+                }}>
+                  {typeInfo.icon}
+                </Box>
+                <Box flex={1}>
+                  <Typography variant="h5" fontWeight={700} gutterBottom>
+                    {data.title}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">
+                      📅 {formatDate(generated_at)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      ⏱️ {execution_time_ms}ms
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
+              <ButtonComponent
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadSynthesis}
+              >
+                Télécharger
+              </ButtonComponent>
             </Box>
-            <ButtonComponent
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadSynthesis}
-            >
-              Télécharger
-            </ButtonComponent>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
-
-          {/* Metadata */}
+          {/* Metadata Badges */}
           {data._metadata && (
-            <Box mb={2}>
-              <Stack direction="row" spacing={1} flexWrap="wrap" mb={1}>
+            <Box sx={{ mb: 3 }}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {data._metadata.used_anonymized_data && (
                   <Chip 
-                    label="Données anonymisées" 
+                    label="✓ Données anonymisées" 
                     size="small" 
                     color="success" 
-                    icon={<CheckIcon />}
                   />
                 )}
                 <Chip 
-                  label={`${data._metadata.documents_analyzed} document(s)`} 
+                  label={`${data._metadata.documents_analyzed} document(s) analysé(s)`} 
                   size="small" 
                   variant="outlined"
                 />
                 {data._metadata.total_pii_detected !== undefined && (
                   <Chip 
-                    label={`${data._metadata.total_pii_detected} PII détectées`} 
+                    label={`${data._metadata.total_pii_detected} informations protégées`} 
                     size="small" 
                     color="warning"
                     variant="outlined"
@@ -299,62 +322,91 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
             </Box>
           )}
 
-          {/* Content */}
-          <Paper 
-            variant="outlined" 
-            sx={{ 
-              p: 2, 
-              mb: 2, 
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50'
-            }}
-          >
-            <Typography 
-              variant="body2" 
-              component="pre" 
+          <Divider sx={{ mb: 3 }} />
+
+          {/* Main Content */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+              Synthèse complète
+            </Typography>
+            <Paper 
+              variant="outlined" 
               sx={{ 
-                whiteSpace: 'pre-wrap', 
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                maxHeight: '400px',
-                overflow: 'auto',
+                p: 3, 
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                borderRadius: 2,
               }}
             >
-              {data.content}
-            </Typography>
-          </Paper>
+              <Typography 
+                variant="body2" 
+                component="pre" 
+                sx={{ 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  fontSize: '0.9375rem',
+                  lineHeight: 1.7,
+                  maxHeight: '600px',
+                  overflow: 'auto',
+                  margin: 0,
+                  color: 'text.primary',
+                }}
+              >
+                {data.content}
+              </Typography>
+            </Paper>
+          </Box>
 
           {/* Key Findings */}
           {data.key_findings && data.key_findings.length > 0 && (
-            <Box mb={2}>
-              <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                Points clés
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+                📌 Points clés
               </Typography>
-              <Stack spacing={0.5}>
-                {data.key_findings.map((finding, index) => (
-                  <Box key={index} display="flex" alignItems="center" gap={1}>
-                    <CheckIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                    <Typography variant="body2">{finding}</Typography>
-                  </Box>
-                ))}
-              </Stack>
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
+                <Stack spacing={1.5}>
+                  {data.key_findings.map((finding, index) => (
+                    <Box key={index} display="flex" alignItems="flex-start" gap={1.5}>
+                      <Box sx={{
+                        mt: 0.5,
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: 'success.main',
+                        flexShrink: 0
+                      }} />
+                      <Typography variant="body2" sx={{ flex: 1 }}>{finding}</Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Paper>
             </Box>
           )}
 
           {/* Comparisons */}
           {data.comparisons && data.comparisons.length > 0 && (
-            <Box mb={2}>
-              <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                Comparaisons
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+                🔍 Comparaisons
               </Typography>
-              <Grid container spacing={1}>
+              <Grid container spacing={2}>
                 {data.comparisons.map((comp, index) => (
-                  <Grid item xs={12} sm={6} md={4} key={index}>
-                    <Paper variant="outlined" sx={{ p: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  <Grid size={{ xs: 12, sm: 6 }} key={index}>
+                    <Paper 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2, 
+                        height: '100%',
+                        bgcolor: 'background.default',
+                        '&:hover': {
+                          bgcolor: 'action.hover'
+                        }
+                      }}
+                    >
+                      <Typography variant="caption" color="primary.main" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         {comp.category}
                       </Typography>
                       {comp.filename && (
-                        <Typography variant="body2" noWrap>{comp.filename}</Typography>
+                        <Typography variant="body2" fontWeight={500} sx={{ mt: 0.5, mb: 1 }}>{comp.filename}</Typography>
                       )}
                       {comp.size !== undefined && (
                         <Typography variant="caption" color="text.secondary">
@@ -390,149 +442,233 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
   };
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
-        Synthèses Médicales Intelligentes
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Générez des rapports et analyses à partir de documents médicaux anonymisés
-      </Typography>
+    <Box sx={{ maxWidth: 1600, mx: 'auto' }}>
+      {/* Header Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+          Synthèses Médicales Intelligentes
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Générez des rapports et analyses à partir de documents médicaux anonymisés
+        </Typography>
+      </Box>
+
+      {/* Synthesis Type Selection - Full Width Cards */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 2 }}>
+          Étape 1 : Choisissez le type de synthèse
+        </Typography>
+        <Grid container spacing={2}>
+          {synthesisTypes.map((type) => (
+            <Grid key={type.value} size={{ xs: 12, md: 4 }}>
+              <Card 
+                sx={{ 
+                  cursor: 'pointer',
+                  border: 2,
+                  borderColor: synthesisType === type.value ? type.color : 'transparent',
+                  bgcolor: synthesisType === type.value ? `${type.color}08` : 'background.paper',
+                  transition: 'all 0.2s',
+                  height: '100%',
+                  '&:hover': {
+                    borderColor: type.color,
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4,
+                  }
+                }}
+                onClick={() => {
+                  setSynthesisType(type.value as any);
+                  setResult(null);
+                }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <Box 
+                      sx={{ 
+                        p: 1.5, 
+                        borderRadius: 2, 
+                        bgcolor: `${type.color}20`,
+                        color: type.color,
+                        display: 'flex'
+                      }}
+                    >
+                      {type.icon}
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                        {type.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                        {type.description}
+                      </Typography>
+                    </Box>
+                    {synthesisType === type.value && (
+                      <CheckIcon sx={{ color: type.color }} />
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
 
       <Grid container spacing={3}>
         {/* Configuration Panel */}
-        <Grid item xs={12} md={5}>
-          <CardComponent title="Configuration" icon={<SynthesisIcon />}>
-            <CardContent>
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Type de synthèse</InputLabel>
-                <Select
-                  value={synthesisType}
-                  onChange={(e) => {
-                    setSynthesisType(e.target.value as any);
-                    setResult(null);
-                  }}
-                  label="Type de synthèse"
-                >
-                  {synthesisTypes.map((type) => (
-                    <MenuItem key={type.value} value={type.value}>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Box sx={{ color: type.color }}>{type.icon}</Box>
-                        <Box>
-                          <Typography variant="body2" fontWeight={500}>
-                            {type.label}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {type.description}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+        <Grid size={{ xs: 12, md: 5 }}>
+          <Card>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Étape 2 : Sélection des documents
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
 
-              <Autocomplete
-                freeSolo
-                options={availablePatientIds}
-                value={patientId}
-                onInputChange={(_, newValue) => setPatientId(newValue || '')}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    label="ID Patient"
-                    placeholder="Ex: pat_002, P_001, p_111"
-                    helperText={
-                      patientId.trim() 
-                        ? `${documents.length} document(s) trouvé(s) pour "${patientId}"` 
-                        : `${availablePatientIds.length} patient(s) disponible(s) - Commencez à taper ou sélectionnez`
-                    }
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {params.InputProps.endAdornment}
-                          {patientId && documents.length > 0 && (
-                            <Chip 
-                              label={`${documents.length} docs`} 
-                              size="small" 
-                              color="primary"
-                              sx={{ mr: 1 }}
-                            />
-                          )}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-                sx={{ mb: 3 }}
-              />
-
-              {patientId.trim() && (
+              {/* Patient ID Selection */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>
+                  ID Patient
+                </Typography>
                 <Autocomplete
-                  multiple
-                  options={documents}
-                  getOptionLabel={(option) => option.filename}
-                  value={selectedDocuments}
-                  onChange={(_, newValue) => setSelectedDocuments(newValue)}
-                  loading={loadingDocuments}
-                  noOptionsText="Aucun document trouvé pour ce patient"
+                  freeSolo
+                  options={availablePatientIds}
+                  value={patientId}
+                  onInputChange={(_, newValue) => setPatientId(newValue || '')}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label={synthesisType === 'summary' ? 'Sélectionner un document' : 'Sélectionner des documents'}
-                      placeholder="Documents filtrés par patient"
+                      fullWidth
+                      placeholder="Ex: pat_002, P_001, p_111"
                       helperText={
-                        synthesisType === 'summary' 
-                          ? 'Sélectionnez un document' 
-                          : synthesisType === 'comparison'
-                          ? 'Sélectionnez au moins 2 documents'
-                          : 'Sélectionnez un ou plusieurs documents'
+                        patientId.trim() 
+                          ? `${documents.length} document(s) trouvé(s)` 
+                          : `${availablePatientIds.length} patient(s) disponible(s)`
                       }
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {params.InputProps.endAdornment}
+                            {patientId && documents.length > 0 && (
+                              <Chip 
+                                label={`${documents.length}`} 
+                                size="small" 
+                                color="primary"
+                                sx={{ mr: 1 }}
+                              />
+                            )}
+                          </>
+                        ),
+                      }}
                     />
                   )}
-                  renderOption={(props, option) => {
-                    const { key, ...otherProps } = props as any;
-                    return (
-                      <li key={key} {...otherProps}>
-                        <Box>
-                          <Typography variant="body2">{option.filename}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {option.file_type} • {option.is_anonymized ? 'Anonymisé' : 'Non anonymisé'}
-                            {option.patient_id && ` • Patient: ${option.patient_id}`}
-                          </Typography>
-                        </Box>
-                      </li>
-                    );
-                  }}
-                  sx={{ mb: 3 }}
                 />
+              </Box>
+
+              {/* Document Selection */}
+              {patientId.trim() && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>
+                    Documents
+                    <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                      {synthesisType === 'summary' 
+                        ? '(1 requis)' 
+                        : synthesisType === 'comparison'
+                        ? '(min. 2 requis)'
+                        : '(1 ou plus)'}
+                    </Typography>
+                  </Typography>
+                  <Autocomplete
+                    multiple
+                    options={documents}
+                    getOptionLabel={(option) => option.filename}
+                    value={selectedDocuments}
+                    onChange={(_, newValue) => setSelectedDocuments(newValue)}
+                    loading={loadingDocuments}
+                    noOptionsText="Aucun document trouvé"
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        placeholder={documents.length > 0 ? "Cliquez pour sélectionner" : "Aucun document disponible"}
+                      />
+                    )}
+                    renderOption={(props, option) => {
+                      const { key, ...otherProps } = props as any;
+                      return (
+                        <li key={key} {...otherProps}>
+                          <Box sx={{ width: '100%' }}>
+                            <Typography variant="body2" fontWeight={500}>{option.filename}</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                              <Chip label={option.file_type} size="small" variant="outlined" />
+                              <Chip 
+                                label={option.is_anonymized ? 'Anonymisé' : 'Non anonymisé'} 
+                                size="small" 
+                                color={option.is_anonymized ? 'success' : 'default'}
+                              />
+                            </Box>
+                          </Box>
+                        </li>
+                      );
+                    }}
+                  />
+                </Box>
               )}
 
+              {/* Status Messages */}
               {patientId.trim() && documents.length === 0 && (
                 <Alert severity="warning" sx={{ mb: 3 }}>
-                  <Typography variant="body2" fontWeight={500}>
-                    Aucun document trouvé pour le patient "{patientId}"
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Aucun document pour "{patientId}"
                   </Typography>
-                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                    IDs patients disponibles: {availablePatientIds.slice(0, 5).join(', ')}
-                    {availablePatientIds.length > 5 && ` et ${availablePatientIds.length - 5} autre(s)...`}
+                  <Typography variant="caption" display="block">
+                    Essayez: {availablePatientIds.slice(0, 3).join(', ')}
+                    {availablePatientIds.length > 3 && `... (+${availablePatientIds.length - 3})`}
                   </Typography>
                 </Alert>
               )}
 
               {selectedDocuments.length > 0 && (
-                <Alert severity="info" sx={{ mb: 3 }} icon={<CheckIcon />}>
-                  {selectedDocuments.length} document(s) sélectionné(s)
-                  {patientId.trim() && ` pour le patient ${patientId}`}
-                  {synthesisType === 'comparison' && selectedDocuments.length < 2 && 
-                    ` (au moins 2 requis pour la comparaison)`
-                  }
-                </Alert>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    bgcolor: 'success.50',
+                    borderColor: 'success.main',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <CheckIcon color="success" fontSize="small" />
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      {selectedDocuments.length} document(s) sélectionné(s)
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {selectedDocuments.map((doc) => (
+                      <Chip 
+                        key={doc.id}
+                        label={doc.filename}
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                      />
+                    ))}
+                  </Stack>
+                  {synthesisType === 'comparison' && selectedDocuments.length < 2 && (
+                    <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1 }}>
+                      ⚠️ Comparaison nécessite au moins 2 documents
+                    </Typography>
+                  )}
+                </Paper>
               )}
 
+              <Divider sx={{ mb: 3 }} />
+
+              {/* Action Button */}
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>
+                Étape 3 : Générer
+              </Typography>
               <ButtonComponent
                 fullWidth
+                size="large"
                 onClick={handleCreateSynthesis}
                 loading={createMutation.isPending}
                 disabled={
@@ -545,63 +681,159 @@ ${result.result.recommendations ? `## Recommandations\n${result.result.recommend
 
               {createMutation.error && (
                 <Alert severity="error" sx={{ mt: 2 }}>
-                  Erreur: {(createMutation.error as Error).message || 'Échec de la génération'}
+                  <strong>Erreur:</strong> {(createMutation.error as Error).message || 'Échec de la génération'}
                 </Alert>
               )}
             </CardContent>
-          </CardComponent>
+          </Card>
 
-          {/* Usage Tips */}
+          {/* Quick Guide Card */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                💡 Conseils d'utilisation
-              </Typography>
-              <Typography variant="body2" paragraph sx={{ fontSize: '0.875rem' }}>
-                <strong>• ID Patient:</strong> Entrez un ID patient pour filtrer automatiquement tous ses documents
-              </Typography>
-              <Typography variant="body2" paragraph sx={{ fontSize: '0.875rem' }}>
-                <strong>• Chronologie:</strong> Pour suivre l'évolution d'un patient sur plusieurs documents
-              </Typography>
-              <Typography variant="body2" paragraph sx={{ fontSize: '0.875rem' }}>
-                <strong>• Comparaison:</strong> Pour analyser les différences entre 2+ documents
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                <strong>• Résumé:</strong> Pour obtenir un résumé détaillé d'un seul document
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <InfoIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Guide rapide
+                </Typography>
+              </Box>
+              <Stack spacing={1.5}>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Chronologie
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Suivez l'évolution médicale d'un patient dans le temps
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Comparaison
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Analysez les différences entre plusieurs documents
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" fontWeight={500} gutterBottom>
+                    Résumé
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Obtenez un résumé concis d'un document unique
+                  </Typography>
+                </Box>
+              </Stack>
               <Alert severity="success" sx={{ mt: 2 }} icon={<CheckIcon />}>
-                Les synthèses utilisent automatiquement le contenu anonymisé des documents
+                <Typography variant="caption">
+                  Toutes les synthèses utilisent du contenu anonymisé
+                </Typography>
               </Alert>
             </CardContent>
           </Card>
         </Grid>
 
         {/* Results Panel */}
-        <Grid item xs={12} md={7}>
+        <Grid size={{ xs: 12, md: 7 }}>
           {createMutation.isPending ? (
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 8 }}>
-                <CircularProgress size={60} />
-                <Typography variant="h6" sx={{ mt: 3 }}>
-                  Génération de la synthèse en cours...
+            <Card sx={{ minHeight: 400 }}>
+              <CardContent sx={{ textAlign: 'center', py: 10 }}>
+                <CircularProgress size={60} thickness={4} />
+                <Typography variant="h6" sx={{ mt: 3, fontWeight: 600 }}>
+                  Génération de la synthèse...
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Analyse des documents et génération du contenu
+                  Analyse des {selectedDocuments.length} document(s) en cours
                 </Typography>
+                <Box sx={{ 
+                  mt: 4, 
+                  px: 3, 
+                  py: 2, 
+                  bgcolor: 'action.hover', 
+                  borderRadius: 2,
+                  display: 'inline-block'
+                }}>
+                  <Typography variant="caption" color="text.secondary">
+                    ⏱️ Temps estimé : 5-15 secondes
+                  </Typography>
+                </Box>
               </CardContent>
             </Card>
           ) : result ? (
             renderResult()
           ) : (
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 8 }}>
-                <SynthesisIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary">
-                  Configurez et lancez une synthèse
+            <Card sx={{ minHeight: 400 }}>
+              <CardContent sx={{ textAlign: 'center', py: 10 }}>
+                <Box sx={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: 3,
+                  bgcolor: 'action.hover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3
+                }}>
+                  <SynthesisIcon sx={{ fontSize: 50, color: 'text.secondary' }} />
+                </Box>
+                <Typography variant="h6" color="text.secondary" fontWeight={600} gutterBottom>
+                  Prêt à générer une synthèse
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Sélectionnez un type de synthèse et des documents pour commencer
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+                  Suivez les 3 étapes à gauche pour commencer
                 </Typography>
+                <Stack spacing={1} sx={{ maxWidth: 400, mx: 'auto', textAlign: 'left' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: '50%', 
+                      bgcolor: 'primary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem'
+                    }}>
+                      1
+                    </Box>
+                    <Typography variant="body2">Choisir le type de synthèse</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: '50%', 
+                      bgcolor: 'primary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem'
+                    }}>
+                      2
+                    </Box>
+                    <Typography variant="body2">Sélectionner patient et documents</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: '50%', 
+                      bgcolor: 'primary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem'
+                    }}>
+                      3
+                    </Box>
+                    <Typography variant="body2">Générer la synthèse</Typography>
+                  </Box>
+                </Stack>
               </CardContent>
             </Card>
           )}

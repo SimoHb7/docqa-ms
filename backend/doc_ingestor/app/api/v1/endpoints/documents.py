@@ -686,15 +686,49 @@ async def delete_document(document_id: str):
     Delete a document and all associated data
     """
     try:
-        # This would delete from database and file system
-        # For now, just return success
-        logger.info("Document deleted", document_id=document_id)
+        from app.core.database import db_manager
+        import os
+        
+        # Get document info before deletion
+        conn = await db_manager.pool.acquire()
+        try:
+            document = await conn.fetchrow(
+                "SELECT id, filename, metadata FROM documents WHERE id = $1",
+                document_id
+            )
+            
+            if not document:
+                raise HTTPException(status_code=404, detail="Document not found")
+            
+            # Delete from database (cascade will handle related records)
+            await conn.execute("DELETE FROM documents WHERE id = $1", document_id)
+            
+            # Delete file from disk if exists
+            import json
+            metadata = document['metadata']
+            if metadata:
+                if isinstance(metadata, str):
+                    metadata = json.loads(metadata)
+                file_path = metadata.get('file_path')
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        logger.info("File deleted from disk", file_path=file_path)
+                    except Exception as e:
+                        logger.warning("Failed to delete file from disk", file_path=file_path, error=str(e))
+            
+            logger.info("Document deleted successfully", document_id=document_id, filename=document['filename'])
+            
+        finally:
+            await db_manager.pool.release(conn)
 
         return {
             "message": "Document deleted successfully",
             "document_id": document_id
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             "Failed to delete document",
@@ -703,5 +737,5 @@ async def delete_document(document_id: str):
         )
         raise HTTPException(
             status_code=500,
-            detail="Failed to delete document"
+            detail=f"Failed to delete document: {str(e)}"
         )

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
+import { useUploadStore } from '../store/pageStores';
 
 interface UploadedFile {
   file: File;
@@ -36,23 +37,22 @@ interface UploadedFile {
 export default function ModernUpload() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  
+  // Use Zustand store for persistent state across navigation
+  const { files, setFiles, updateFile: updateFileInStore, removeFile: removeFileFromStore } = useUploadStore();
 
   // Extract progress update logic to reduce nesting
   const updateFileProgress = useCallback((fileId: string, interval: NodeJS.Timeout) => {
-    setFiles((prev) =>
-      prev.map((f) => {
-        if (f.id === fileId) {
-          if (f.progress >= 100) {
-            clearInterval(interval);
-            return { ...f, status: 'success', progress: 100 };
-          }
-          return { ...f, progress: Math.min(f.progress + 10, 100) };
-        }
-        return f;
-      })
-    );
-  }, []);
+    const currentFile = files.find(f => f.id === fileId);
+    if (!currentFile) return;
+    
+    if (currentFile.progress >= 100) {
+      clearInterval(interval);
+      updateFileInStore(fileId, { status: 'success', progress: 100 });
+    } else {
+      updateFileInStore(fileId, { progress: Math.min(currentFile.progress + 10, 100) });
+    }
+  }, [files, updateFileInStore]);
 
   // Extract interval creation to reduce nesting
   const startFileUpload = useCallback((uploadFile: UploadedFile) => {
@@ -69,11 +69,11 @@ export default function ModernUpload() {
       id: crypto.randomUUID(),
     }));
 
-    setFiles((prev) => [...prev, ...newFiles]);
+    setFiles([...files, ...newFiles]);
 
     // Simulate upload progress
     newFiles.forEach(startFileUpload);
-  }, [startFileUpload]);
+  }, [files, setFiles, startFileUpload]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -83,10 +83,6 @@ export default function ModernUpload() {
       'text/plain': ['.txt'],
     },
   });
-
-  const removeFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
 
   const getFileIcon = (filename: string) => {
     if (filename.endsWith('.pdf')) return '#d32f2f';
@@ -204,7 +200,7 @@ export default function ModernUpload() {
                   }}
                   secondaryAction={
                     uploadFile.status === 'success' && (
-                      <IconButton edge="end" onClick={() => removeFile(uploadFile.id)}>
+                      <IconButton edge="end" onClick={() => removeFileFromStore(uploadFile.id)}>
                         <Close />
                       </IconButton>
                     )
@@ -274,7 +270,7 @@ export default function ModernUpload() {
 
       {/* Tips */}
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -286,7 +282,7 @@ export default function ModernUpload() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>
@@ -298,7 +294,7 @@ export default function ModernUpload() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>

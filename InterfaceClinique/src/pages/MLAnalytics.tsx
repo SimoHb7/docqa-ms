@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useMLAnalyticsStore } from '../store/pageStores';
 import {
   Box,
   Grid,
@@ -98,14 +99,27 @@ const ENTITY_COLORS: Record<string, string> = {
 
 const MLAnalytics: React.FC = () => {
   const theme = useTheme();
-  const [patientId, setPatientId] = useState<string>('');
-  const [showDocuments, setShowDocuments] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [classificationResult, setClassificationResult] = useState<MLClassificationResponse | null>(null);
-  const [entitiesResult, setEntitiesResult] = useState<MLEntityExtractionResponse | null>(null);
-  const [processingTime, setProcessingTime] = useState<number>(0);
+  
+  // Use Zustand store for persistent state across navigation
+  const {
+    patientId,
+    setPatientId,
+    showDocuments,
+    setShowDocuments,
+    searchQuery,
+    setSearchQuery,
+    selectedDocumentId,
+    setSelectedDocumentId,
+    classificationResult,
+    setClassificationResult,
+    entitiesResult,
+    setEntitiesResult,
+    processingTime,
+    setProcessingTime,
+  } = useMLAnalyticsStore();
+  
+  // Local state that doesn't need persistence
+  const [selectedDocument, setSelectedDocument] = React.useState<Document | null>(null);
 
   // Fetch all documents
   const { data: allDocumentsDataRaw, isLoading: isLoadingDocuments } = useQuery({
@@ -581,7 +595,7 @@ const MLAnalytics: React.FC = () => {
           >
             <CardContent>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Box>
                       <Typography variant="h6" fontWeight={600}>
@@ -715,7 +729,7 @@ const MLAnalytics: React.FC = () => {
                 </Grid>
 
             {/* Right Column - Action & Stats */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: '100%' }}>
                 {/* Selected Document Info */}
                 {selectedDocument && (
@@ -822,7 +836,7 @@ const MLAnalytics: React.FC = () => {
         {classificationResult && doughnutData && (
           <>
             {/* Predicted Class - Hero Card */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Card
                 elevation={3}
                 sx={{
@@ -907,7 +921,7 @@ const MLAnalytics: React.FC = () => {
             </Grid>
 
             {/* Doughnut Chart - All Probabilities */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <Card elevation={3} sx={{ height: '100%' }}>
                 <CardContent sx={{ p: 4 }}>
                   <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>
@@ -963,7 +977,7 @@ const MLAnalytics: React.FC = () => {
           <>
             {/* Radar Chart */}
             {radarData && (
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Card elevation={3} sx={{ height: '100%' }}>
                   <CardContent sx={{ p: 4 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -1018,7 +1032,7 @@ const MLAnalytics: React.FC = () => {
             )}
 
             {/* Entity Cards Grid */}
-            <Grid item xs={12} md={radarData ? 6 : 12}>
+            <Grid size={{ xs: 12, md: radarData ? 6 : 12 }}>
               <Card elevation={3} sx={{ height: '100%' }}>
                 <CardContent sx={{ p: 4 }}>
                   <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>
@@ -1027,7 +1041,7 @@ const MLAnalytics: React.FC = () => {
                   <Box sx={{ maxHeight: radarData ? 430 : 'auto', overflowY: 'auto', pr: 1 }}>
                     <Grid container spacing={2}>
                       {entitiesResult.value.map((entity, idx) => (
-                        <Grid item xs={12} sm={radarData ? 12 : 6} md={radarData ? 12 : 4} lg={radarData ? 12 : 3} key={idx}>
+                        <Grid size={{ xs: 12, sm: radarData ? 12 : 6, md: radarData ? 12 : 4, lg: radarData ? 12 : 3 }} key={idx}>
                           <Paper
                             elevation={0}
                             sx={{
@@ -1114,7 +1128,7 @@ const MLAnalytics: React.FC = () => {
         {/* Performance Stats Cards */}
         {(classificationResult || entitiesResult || processingTime > 0) && (
           <>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card
                 elevation={2}
                 sx={{
@@ -1156,7 +1170,7 @@ const MLAnalytics: React.FC = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card
                 elevation={2}
                 sx={{
@@ -1198,7 +1212,7 @@ const MLAnalytics: React.FC = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card
                 elevation={2}
                 sx={{
@@ -1240,7 +1254,7 @@ const MLAnalytics: React.FC = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Card
                 elevation={2}
                 sx={{
@@ -1286,7 +1300,7 @@ const MLAnalytics: React.FC = () => {
 
         {/* Empty State - Full Width */}
         {!classificationResult && !entitiesResult && !analyzeMutation.isPending && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card
               elevation={0}
               sx={{
@@ -1357,7 +1371,7 @@ const MLAnalytics: React.FC = () => {
 
         {/* Loading State - Full Width */}
         {analyzeMutation.isPending && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card elevation={2} sx={{ p: 6, textAlign: 'center' }}>
               <Box
                 sx={{
@@ -1410,9 +1424,9 @@ const MLAnalytics: React.FC = () => {
         )}
 
         {/* Bottom Information Cards */}
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12 }}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
           <Card
             elevation={1}
             sx={{
@@ -1450,7 +1464,7 @@ const MLAnalytics: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card
             elevation={1}
             sx={{
@@ -1488,7 +1502,7 @@ const MLAnalytics: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card
             elevation={1}
             sx={{

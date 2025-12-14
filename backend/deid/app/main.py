@@ -95,7 +95,10 @@ def initialize_models():
                 CreditCardRecognizer,
                 MedicalIDRecognizer,
                 FrenchAddressRecognizer,
-                DoctorNameRecognizer
+                DoctorNameRecognizer,
+                HL7NameRecognizer,
+                ArabicNameRecognizer,
+                FullNameRecognizer
             )
 
             # Configure NLP engine for French only
@@ -116,6 +119,9 @@ def initialize_models():
             medical_id_recognizer = MedicalIDRecognizer()
             address_recognizer = FrenchAddressRecognizer()
             doctor_name_recognizer = DoctorNameRecognizer()
+            hl7_name_recognizer = HL7NameRecognizer()
+            arabic_name_recognizer = ArabicNameRecognizer()
+            full_name_recognizer = FullNameRecognizer()
 
             # Initialize analyzer with French NLP support and custom recognizers
             analyzer = AnalyzerEngine(
@@ -131,6 +137,9 @@ def initialize_models():
             analyzer.registry.add_recognizer(medical_id_recognizer)
             analyzer.registry.add_recognizer(address_recognizer)
             analyzer.registry.add_recognizer(doctor_name_recognizer)
+            analyzer.registry.add_recognizer(hl7_name_recognizer)
+            analyzer.registry.add_recognizer(arabic_name_recognizer)
+            analyzer.registry.add_recognizer(full_name_recognizer)
             
             anonymizer = AnonymizerEngine()
 
@@ -168,41 +177,107 @@ async def anonymize_document(request: AnonymizationRequest):
         # Initialize models if needed
         initialize_models()
 
-        # Analyze the text for PII using spaCy NER (don't specify entities for French)
+        # Analyze the text for PII using spaCy NER with explicit entity types
         try:
             analyzer_results = analyzer.analyze(
                 text=request.content,
                 language=request.language,
-                score_threshold=settings.DEID_CONFIDENCE_THRESHOLD
+                score_threshold=0.4,  # Balanced threshold - not too low to avoid medical terms
+                entities=[
+                    "PERSON", "DATE_TIME", "LOCATION", "ADDRESS", 
+                    "PHONE_NUMBER", "EMAIL_ADDRESS", "IBAN_CODE",
+                    "CREDIT_CARD", "MEDICAL_ID", "NRP", "IP_ADDRESS",
+                    "URL", "AGE", "ID"
+                ]
             )
             
-            # Filter out false positives (field labels and common words)
-            # These are labels, not PII values
+            # Filter out false positives (field labels and common medical terms)
+            # These are NOT PII - they are medical terminology and field labels
             false_positive_patterns = [
-                "numero", "numéro", "nom", "prenom", "prénom",
-                "adresse", "telephone", "téléphone", "email", "date",
-                "patient", "medecin", "médecin",  # Removed "docteur", "dr" - handled by DoctorNameRecognizer
-                "diagnostic", "traitement", "prescription",
-                "naissance", "consultation", "examen",
-                # Medical terms that might be confused with locations
+                # Field labels
+                "numero", "numéro", "nom", "prenom", "prénom", "adresse", 
+                "telephone", "téléphone", "email", "date", "sexe", "âge", "age",
+                
+                # Gender terms
+                "masculin", "féminin", "feminin", "homme", "femme", "male", "female",
+                
+                # Vital signs and measurements
+                "température", "temperature", "pression", "fréquence", "frequence",
+                "poids", "taille", "imc", "saturation", "glycémie", "glycemie",
+                
+                # Medical personnel (general terms, not names)
+                "patient", "patiente", "medecin", "médecin", "infirmier", "infirmière",
+                
+                # Medical terms and diagnoses
+                "diagnostic", "traitement", "prescription", "ordonnance",
+                "consultation", "examen", "analyse", "resultats", "résultats",
+                "symptomes", "symptômes", "douleur", "fievre", "fièvre",
+                
+                # Common diseases and conditions  
                 "hypertension", "diabete", "diabète", "cholesterol", "cholestérol",
-                "arterielle", "artérielle", "cardiaque", "pulmonaire",
-                "hepatique", "hépatique", "renale", "rénale", "cerebral", "cérébral",
-                "diagnostic", "pronostic", "therapeutique", "thérapeutique",
-                "clinique", "medical", "médical", "chirurgical"
+                "infection", "inflammation", "fracture", "entorse",
+                "cystite", "pyélonéphrite", "pyelonephrite", "angine", "grippe",
+                "bronchite", "pneumonie", "asthme", "allergie",
+                
+                # Body parts and systems
+                "cardiaque", "pulmonaire", "hepatique", "hépatique", 
+                "renale", "rénale", "renal", "cerebral", "cérébral",
+                "arterielle", "artérielle", "arteriel", "artériel",
+                "lombaire", "thoracique", "abdominale", "abdominal",
+                
+                # Medical specialties and types
+                "clinique", "medical", "médical", "chirurgical", "therapeutique", "thérapeutique",
+                "aigu", "aiguë", "chronique", "complique", "compliqué", "compliquee", "compliquée",
+                
+                # Lab results and bacteria
+                "bacterie", "bactérie", "virus", "coli", "escherichia", "escherichia coli", "e. coli",
+                "staphylocoque", "streptocoque", "leucocytes", "nitrites", "ecbu", "crp", 
+                "elevee", "élevée", "eleve", "élevé", "isole", "isolé", "isolee", "isolée",
+                
+                # Medications and treatments  
+                "antibiotique", "paracetamol", "ciprofloxacine", "amoxicilline",
+                "ibuprofene", "ibuprofène", "aspirine", "doliprane",
+                
+                # Administrative terms
+                "rapport", "dossier", "hopital", "hôpital", "service", "urgence",
+                "rendez-vous", "hospitalisation", "suivi"
             ]
             
             filtered_results = []
             for result in analyzer_results:
-                entity_text = request.content[result.start:result.end].lower().strip()
+                entity_text = request.content[result.start:result.end].strip()
+                entity_text_lower = entity_text.lower()
                 
                 # Skip if it's just a field label (short word matching our list)
-                if entity_text in false_positive_patterns:
+                if entity_text_lower in false_positive_patterns:
                     logger.info(f"Skipping false positive: {entity_text} (type: {result.entity_type})")
+                    continue
+                
+                # Exception: Don't skip if it's a doctor name (contains Dr., Docteur, Pr.)
+                is_doctor_name = any(title in entity_text for title in ["Dr.", "Dr ", "Docteur", "Pr.", "Professeur"])
+                
+                # Skip if it contains common medical terms (partial match)
+                # This catches compound terms like "Pyélonéphrite aiguë"
+                # BUT don't skip doctor names
+                is_medical_term = False
+                if not is_doctor_name:
+                    for medical_term in false_positive_patterns:
+                        if len(medical_term) > 4 and medical_term in entity_text_lower:
+                            logger.info(f"Skipping medical term: {entity_text} (contains '{medical_term}', type: {result.entity_type})")
+                            is_medical_term = True
+                            break
+                
+                if is_medical_term:
                     continue
                 
                 # Skip very short entities (likely false positives) unless high confidence
                 if len(entity_text) < 3 and result.score < 0.9:
+                    continue
+                
+                # Skip entities that look like measurements (number + unit)
+                import re
+                if re.match(r'^\d+[\s]*(mg|g|kg|ml|l|°c|mmhg|bpm|%)', entity_text_lower):
+                    logger.info(f"Skipping measurement: {entity_text}")
                     continue
                     
                 filtered_results.append(result)

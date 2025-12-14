@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAppStore } from './store';
 import getTheme from './theme';
 import { useAuthToken } from './hooks/useAuthToken';
+import { useLogoutHandler } from './hooks/useLogoutHandler';
 
 // Modern Layout
 import ModernLayout from './components/layout/ModernLayout';
@@ -133,6 +134,9 @@ function App() {
   
   // Sync Auth0 tokens with API client
   useAuthToken();
+
+  // Clear all persisted state on logout or user switch
+  useLogoutHandler();
 
   // Create MUI theme based on app theme
   const theme = useMemo(() => getTheme(appTheme), [appTheme]);

@@ -335,7 +335,7 @@ export default function ModernDocuments() {
       {/* Documents Grid */}
       <Grid container spacing={3}>
         {filteredDocuments.map((doc) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={doc.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={doc.id}>
             <DocumentCard document={doc} onMenuClick={handleMenuClick} />
           </Grid>
         ))}

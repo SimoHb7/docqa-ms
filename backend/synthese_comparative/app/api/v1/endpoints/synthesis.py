@@ -269,7 +269,7 @@ Fournis une chronologie médicale claire et structurée."""
             response = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Tu es un médecin expert en analyse chronologique de dossiers médicaux."},
+                    {"role": "system", "content": "Tu es un médecin expert en analyse chronologique de dossiers médicaux. IMPORTANT: Ne mentionne JAMAIS les identifiants techniques de documents (UUIDs). Réfère-toi aux documents par leur date ou type."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -369,7 +369,7 @@ Fournis une analyse comparative médicale structurée et professionnelle."""
             response = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Tu es un médecin expert en analyse comparative."},
+                    {"role": "system", "content": "Tu es un médecin expert en analyse comparative. IMPORTANT: Ne mentionne JAMAIS les identifiants techniques de documents (UUIDs). Réfère-toi aux documents par leur numéro ou type (Document 1, Document 2, etc.)."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -478,7 +478,7 @@ Fournis une synthèse médicale claire, structurée et professionnelle. Utilise 
             response = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Tu es un médecin expert en synthèse médicale."},
+                    {"role": "system", "content": "Tu es un médecin expert en synthèse médicale. IMPORTANT: Ne mentionne JAMAIS les identifiants techniques de documents (UUIDs). Réfère-toi simplement au 'document médical' ou 'dossier patient'."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,

@@ -7,35 +7,15 @@ import {
   CheckCircle,
 
 } from '@mui/icons-material';
-import { Line, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js';
+import { LazyLine as Line, LazyDoughnut as Doughnut } from '../components/charts/LazyCharts';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useEffect } from 'react';
 
-// Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+// Dynamically register ChartJS components only when needed
+const registerChartJS = async () => {
+  const { Chart, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } = await import('chart.js');
+  Chart.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
+};
 
 // Modern Stat Card
 function ModernStatCard({ title, value, subtitle, icon, color, trend }: any) {
@@ -506,6 +486,11 @@ function RecentActivity({ activities }: { activities: Array<{ id: number; type: 
 export default function ProfessionalDashboard() {
   const { data: dashboardData, isLoading, error } = useDashboardData();
 
+  // Register Chart.js when component mounts
+  useEffect(() => {
+    registerChartJS();
+  }, []);
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -554,7 +539,7 @@ export default function ProfessionalDashboard() {
 
         {/* Stats Grid - Full Width Centered */}
         <Grid container spacing={9} sx={{ mb: 5, justifyContent: 'center' }}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <ModernStatCard
               title="Total Documents"
               value={stats.totalDocuments.toString()}
@@ -563,7 +548,7 @@ export default function ProfessionalDashboard() {
               color="#3b82f6"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <ModernStatCard
               title="Imports ce mois"
               value={stats.monthlyUploads.toString()}
@@ -572,7 +557,7 @@ export default function ProfessionalDashboard() {
               color="#10b981"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <ModernStatCard
               title="Questions posées"
               value={stats.totalQuestions.toString()}
@@ -581,7 +566,7 @@ export default function ProfessionalDashboard() {
               color="#8b5cf6"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <ModernStatCard
               title="Taux de réussite"
               value={`${stats.successRate}%`}
@@ -594,17 +579,17 @@ export default function ProfessionalDashboard() {
 
         {/* Charts Section - Side by Side, Full Width */}
         <Grid container spacing={9} sx={{ mb: 4, justifyContent: 'center' }}>
-          <Grid item xs={12} sm={6} md={6}>
+          <Grid size={{ xs: 12, sm: 6, md: 6 }}>
             <ActivityLineChart data={activity} />
           </Grid>
-          <Grid item xs={12} sm={6} md={6}>
+          <Grid size={{ xs: 12, sm: 6, md: 6 }}>
             <DocumentTypeChart data={documentTypes} />
           </Grid>
         </Grid>
 
         {/* Recent Activity - Smaller */}
         <Grid container spacing={9} sx={{ justifyContent: 'center' }}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <RecentActivity activities={recentActivities} />
           </Grid>
         </Grid>

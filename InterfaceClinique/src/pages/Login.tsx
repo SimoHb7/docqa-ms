@@ -531,8 +531,8 @@ const Login: React.FC = () => {
                     Mot de passe oublié ?
                   </Link>
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Nouveau sur InterfaceClinique ?{' '}
+                {/* <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Nouveau sur DocQA ?{' '}
                   <Link
                     href="#"
                     color="primary"
@@ -566,7 +566,7 @@ const Login: React.FC = () => {
                   >
                     Configuration Auth0
                   </Button>
-                </Typography>
+                </Typography> */}
               </Box>
             </motion.div>
 
