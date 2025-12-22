@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS document_anonymizations (
     processing_time_ms INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+--tt
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_document_anonymizations_document_id ON document_anonymizations(document_id);
