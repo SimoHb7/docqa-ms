@@ -20,6 +20,19 @@ __pycache__/
 # Data files
 *.csv
 
+# ML Models (too large for GitHub - use Git LFS or download separately)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl
+*.pickle
+saved_models/
+models/
+*.model
+
 
 # Distribution / packaging
 .Python
