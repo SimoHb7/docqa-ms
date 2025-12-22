@@ -30,7 +30,10 @@ __pycache__/
 *.pkl
 *.pickle
 saved_models/
-models/
+# models/ - Too broad, use specific paths:
+backend/ml_service/saved_models/
+backend/ml_service/models/
+backend/indexer_semantique/models/
 *.model
 
 
