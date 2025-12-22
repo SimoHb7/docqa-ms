@@ -202,8 +202,10 @@ const MLAnalytics: React.FC = () => {
       
       setSelectedDocument(doc);
       
-      // Use document content or filename for analysis
-      const textToAnalyze = doc.content || doc.filename || '';
+      // FIXED: Fetch document content from database using authenticated API
+      // The list API doesn't return content, only metadata
+      console.log('📥 Fetching document content for:', doc.id);
+      const textToAnalyze = await documentsApi.getContent(doc.id);
       
       if (!textToAnalyze || textToAnalyze.trim() === '') {
         throw new Error('Le document ne contient pas de texte à analyser');
@@ -214,7 +216,17 @@ const MLAnalytics: React.FC = () => {
     },
     onSuccess: (data: MLAnalyzeResponse) => {
       if (data.classification) setClassificationResult(data.classification);
-      if (data.entities) setEntitiesResult(data.entities);
+      
+      // Convert backend array response to frontend expected format
+      if (data.entities) {
+        // Backend returns { entities: [...] } but frontend expects { value: [...], Count: ... }
+        const entitiesArray = Array.isArray(data.entities) ? data.entities : data.entities.value || [];
+        setEntitiesResult({
+          value: entitiesArray,
+          Count: entitiesArray.length
+        });
+      }
+      
       setProcessingTime(data.processing_time_ms);
       toast.success(`✨ Analyse terminée en ${data.processing_time_ms}ms`);
     },
@@ -1458,7 +1470,7 @@ const MLAnalytics: React.FC = () => {
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                Modèle de classification basé sur BERT, pré-entraîné sur du français. 110M paramètres. Classification en 7
+                Modèle de classification fine-tuné sur corpus médical français. 110M paramètres. Classification en 7
                 types de documents médicaux.
               </Typography>
             </CardContent>
@@ -1496,7 +1508,7 @@ const MLAnalytics: React.FC = () => {
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                Modèle NER spécialisé biomédical. Extraction d'entités: maladies, médicaments, dosages, tests, symptômes et
+                Modèle NER spécialisé en médecine. Extraction d'entités: maladies, médicaments, dosages, tests, symptômes et
                 anatomie.
               </Typography>
             </CardContent>
@@ -1534,7 +1546,7 @@ const MLAnalytics: React.FC = () => {
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-                Inférence rapide sur CPU (~50-80ms). Modèles pré-entraînés prêts. Fine-tuning disponible sur Google Colab
+                Inférence rapide sur CPU (~1-2 secondes). Modèles optimisés pour le français médical. Fine-tuning disponible
                 pour améliorer la précision.
               </Typography>
             </CardContent>

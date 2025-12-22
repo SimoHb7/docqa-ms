@@ -353,8 +353,11 @@ export interface MLAnalyzeRequest {
 
 export interface MLAnalyzeResponse {
   classification?: MLClassificationResponse;
-  entities?: MLEntityExtractionResponse;
+  entities?: MLEntity[] | MLEntityExtractionResponse; // Backend may return array or object
+  entity_count?: number;
+  entity_types?: string[];
   processing_time_ms: number;
+  processing_status?: string;
 }
 
 export interface MLHealthResponse {

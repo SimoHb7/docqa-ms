@@ -9,13 +9,13 @@ __pycache__/
 # Environment files
 .env
 *.env
-
-# 
-.md
-.yml
-.ps1
-.sh
 .env.*
+
+# Scripts and documentation (excluded from repository)
+*.ps1
+*.sh
+*.txt
+*.md
 
 
 # Distribution / packaging

@@ -7,7 +7,7 @@ from typing import List, Optional
 import aiofiles
 import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import pika
 import json
 
@@ -390,16 +390,17 @@ async def upload_document(
             logger.warning("Failed to extract text content", error=str(e))
             text_content = f"[Binary file: {file.filename}]"
 
-        # Anonymize the content before saving
+        # Anonymize content to protect patient privacy
+        # This removes PII (names, dates, locations, etc.) before storing in database
         anonymized_content, pii_entities = await anonymize_content(document_id, text_content)
         
         # Log anonymization results
-        if pii_entities:
-            logger.info(
-                "PII detected and anonymized",
-                document_id=document_id,
-                pii_types=[entity.get("entity_type") for entity in pii_entities]
-            )
+        logger.info(
+            "Document anonymized",
+            document_id=document_id,
+            pii_count=len(pii_entities),
+            pii_types=[entity.get("entity_type") for entity in pii_entities]
+        )
 
         # Save file temporarily
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
@@ -616,6 +617,31 @@ async def get_document(document_id: str):
             status_code=500,
             detail="Failed to retrieve document"
         )
+
+
+@router.get("/{document_id}/content")
+async def get_document_content(document_id: str):
+    """
+    Get the text content of a document for analysis
+    """
+    try:
+        async with db_manager.pool.acquire() as conn:
+            result = await conn.fetchrow(
+                "SELECT content FROM documents WHERE id = $1",
+                uuid.UUID(document_id)
+            )
+            
+            if not result:
+                raise HTTPException(status_code=404, detail="Document not found")
+            
+            content = result['content'] or ""
+            return Response(content=content, media_type="text/plain; charset=utf-8")
+            
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+    except Exception as e:
+        logger.error("Failed to get document content", document_id=document_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve document content")
 
 
 @router.get("/{document_id}/download")

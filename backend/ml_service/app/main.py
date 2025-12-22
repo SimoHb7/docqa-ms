@@ -31,10 +31,10 @@ async def lifespan(app: FastAPI):
     
     # Initialize model manager
     model_manager = ModelManager(
-        classifier_path=settings.CLASSIFIER_MODEL_PATH if not settings.CLASSIFIER_USE_PRETRAINED else None,
+        classifier_path=settings.CLASSIFIER_MODEL_PATH,
         classifier_pretrained=settings.CLASSIFIER_PRETRAINED_MODEL,
         classifier_use_pretrained=settings.CLASSIFIER_USE_PRETRAINED,
-        ner_path=settings.NER_MODEL_PATH if not settings.NER_USE_PRETRAINED else None,
+        ner_path=settings.NER_MODEL_PATH,
         ner_pretrained=settings.NER_PRETRAINED_MODEL,
         ner_use_pretrained=settings.NER_USE_PRETRAINED,
         device=settings.DEVICE

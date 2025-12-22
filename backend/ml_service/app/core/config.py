@@ -28,13 +28,13 @@ class Settings(BaseSettings):
     DATA_DIR: str = "./data"
     
     # Document Classifier Settings
-    CLASSIFIER_MODEL_PATH: str = "./saved_models/document_classifier"
-    CLASSIFIER_USE_PRETRAINED: bool = True  # Use pre-trained or custom trained
+    CLASSIFIER_MODEL_PATH: str = "./saved_models/document_classifier_model"
+    CLASSIFIER_USE_PRETRAINED: bool = False  # Use pre-trained or custom trained
     CLASSIFIER_PRETRAINED_MODEL: str = "camembert-base"
     
     # Medical NER Settings
-    NER_MODEL_PATH: str = "./saved_models/medical_ner"
-    NER_USE_PRETRAINED: bool = True
+    NER_MODEL_PATH: str = "./saved_models/medical_ner_model"
+    NER_USE_PRETRAINED: bool = False
     NER_PRETRAINED_MODEL: str = "dmis-lab/biobert-v1.1"
     
     # Risk Predictor Settings

@@ -140,12 +140,16 @@ class ModelManager:
         Returns:
             Complete analysis including classification and entities
         """
+        import time
+        start_time = time.time()
+        
         result = {
             "text": text,
             "classification": None,
             "entities": None,
             "entity_count": 0,
-            "processing_status": "success"
+            "processing_status": "success",
+            "processing_time_ms": 0
         }
         
         try:
@@ -160,10 +164,14 @@ class ModelManager:
                 result["entity_count"] = len(entities)
                 result["entity_types"] = list(set(e["label"] for e in entities))
             
+            # Calculate processing time
+            result["processing_time_ms"] = int((time.time() - start_time) * 1000)
+            
         except Exception as e:
             logger.error(f"Document processing error: {e}")
             result["processing_status"] = "error"
             result["error"] = str(e)
+            result["processing_time_ms"] = int((time.time() - start_time) * 1000)
         
         return result
     

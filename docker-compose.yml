@@ -175,12 +175,12 @@ services:
     ports:
       - "8006:8000"
     environment:
-      - CLASSIFIER_USE_PRETRAINED=true
+      - CLASSIFIER_USE_PRETRAINED=false
       - CLASSIFIER_PRETRAINED_MODEL=camembert-base
-      - CLASSIFIER_MODEL_PATH=saved_models/document_classifier_model
-      - NER_USE_PRETRAINED=true
+      - CLASSIFIER_MODEL_PATH=./saved_models/document_classifier_model
+      - NER_USE_PRETRAINED=false
       - NER_PRETRAINED_MODEL=dmis-lab/biobert-v1.1
-      - NER_MODEL_PATH=saved_models/medical_ner_model
+      - NER_MODEL_PATH=./saved_models/medical_ner_model
       - DEVICE=cpu
       - DATABASE_URL=postgresql://user:password@postgres:5432/docqa_db
       - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/

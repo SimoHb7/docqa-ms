@@ -49,6 +49,7 @@ class DocumentAnalysisResponse(BaseModel):
     entity_count: int = 0
     entity_types: Optional[List[str]] = None
     processing_status: str
+    processing_time_ms: int = 0
 
 
 # Dependency to get model manager

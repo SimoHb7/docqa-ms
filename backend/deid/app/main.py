@@ -191,56 +191,355 @@ async def anonymize_document(request: AnonymizationRequest):
                 ]
             )
             
-            # Filter out false positives (field labels and common medical terms)
-            # These are NOT PII - they are medical terminology and field labels
+            # ========================================================================
+            # LISTE COMPLÈTE DES FAUX POSITIFS - TERMES MÉDICAUX À PRÉSERVER
+            # Basée sur les standards HIPAA Safe Harbor Method
+            # ========================================================================
+            # Ce qui DOIT être détecté comme PII (18 identifiants HIPAA):
+            # 1. Noms de personnes réelles
+            # 2. Adresses géographiques (rue, ville, code postal)
+            # 3. Dates précises (sauf année) liées au patient
+            # 4. Numéros de téléphone
+            # 5. Numéros de fax
+            # 6. Adresses email
+            # 7. Numéros de sécurité sociale
+            # 8. Numéros de dossier médical
+            # 9. Numéros d'assurance santé
+            # 10. Numéros de compte
+            # 11. Numéros de certificat/licence
+            # 12. Identifiants de véhicule (plaques)
+            # 13. Identifiants d'appareil médical (séries)
+            # 14. URLs web
+            # 15. Adresses IP
+            # 16. Identifiants biométriques
+            # 17. Photos de visage
+            # 18. Autres identifiants uniques
+            #
+            # Ce qui NE DOIT PAS être détecté (terminologie médicale):
             false_positive_patterns = [
-                # Field labels
+                # ===== 1. ÉTIQUETTES DE CHAMPS ET STRUCTURE DE DOCUMENT =====
                 "numero", "numéro", "nom", "prenom", "prénom", "adresse", 
-                "telephone", "téléphone", "email", "date", "sexe", "âge", "age",
+                "telephone", "téléphone", "tel", "email", "mail", "courriel",
+                "date", "sexe", "âge", "age", "genre",
+                "motif", "objet", "sujet",
+                "antecedents", "antécédents", "historique", "histoire",
+                "prochain", "suivant", "précédent", "precedent",
+                "rdv", "rendez-vous", "consultation",
+                "naissance", "admission", "sortie", "hospitalisation",
+                "référence", "reference", "dossier", "fichier",
+                "prescrit", "prescrite", "prescription", "prescripteur",
+                "note", "notes", "remarque", "remarques", "observation", "observations",
+                "signature", "signé", "signe", "paraphe",
+                "recommandations", "recommandation", "conseils", "conseil",
+                "mesures", "mesure", "hygiéno-diététiques", "hygieno-dietetiques",
+                "hygiéno-diététique", "hygieno-dietetique", "hygiène", "hygiene", "diététique", "dietetique",
                 
-                # Gender terms
-                "masculin", "féminin", "feminin", "homme", "femme", "male", "female",
+                # ===== 2. TERMES DE GENRE ET ÉTAT CIVIL =====
+                "masculin", "féminin", "feminin", "homme", "femme",
+                "male", "female", "garçon", "garcon", "fille",
+                "monsieur", "madame", "mademoiselle", "mr", "mme", "mlle",
                 
-                # Vital signs and measurements
-                "température", "temperature", "pression", "fréquence", "frequence",
-                "poids", "taille", "imc", "saturation", "glycémie", "glycemie",
+                # ===== 3. SIGNES VITAUX ET MESURES =====
+                "température", "temperature", "temp", "fièvre", "fievre",
+                "pression", "tension", "artérielle", "arterielle", "systolique", "diastolique",
+                "fréquence", "frequence", "cardiaque", "rythme", "pouls",
+                "poids", "taille", "imc", "indice", "masse", "corporelle",
+                "saturation", "spo2", "oxygène", "oxygene",
+                "glycémie", "glycemie", "glucose", "hba1c",
                 
-                # Medical personnel (general terms, not names)
-                "patient", "patiente", "medecin", "médecin", "infirmier", "infirmière",
+                # ===== 4. PERSONNEL MÉDICAL (termes généraux, pas noms propres) =====
+                "patient", "patiente", "malade",
+                "medecin", "médecin", "docteur", "dr", "professeur", "pr",
+                "infirmier", "infirmière", "infirmiere", "ide",
+                "chirurgien", "anesthésiste", "anesthesiste",
+                "cardiologue", "dermatologue", "radiologue", "neurologue",
+                "pédiatre", "pediatre", "gériatre", "geriatre",
+                "pharmacien", "sage-femme", "kinésithérapeute", "kinesitherapeute",
                 
-                # Medical terms and diagnoses
-                "diagnostic", "traitement", "prescription", "ordonnance",
-                "consultation", "examen", "analyse", "resultats", "résultats",
-                "symptomes", "symptômes", "douleur", "fievre", "fièvre",
+                # ===== 5. TERMES MÉDICAUX GÉNÉRAUX =====
+                "diagnostic", "diagnostique", "pronostic",
+                "traitement", "thérapie", "therapie", "cure", "soin", "soins",
+                "prescription", "ordonnance", "posologie",
+                "consultation", "examen", "bilan", "check-up",
+                "analyse", "test", "screening", "dépistage", "depistage",
+                "resultats", "résultats", "rapport", "compte-rendu", "compte", "rendu",
+                "symptomes", "symptômes", "signes", "manifestation",
+                "clinique", "medical", "médical", "thérapeutique", "therapeutique",
+                "pathologie", "maladie", "affection", "trouble",
+                "syndrome", "epidemie", "épidémie", "contagieux", "contagieuse",
+                "régime", "regime", "alimentaire", "nutrition", "nutritionnel", "nutritionnelle",
+                "pauvre", "riche", "équilibré", "equilibre", "équilibre",
+                "sel", "sucre", "graisses", "graisse", "saturées", "saturees", "saturée", "saturee",
+                "lipides", "lipide", "glucides", "glucide", "protéines", "proteine",
+                "activité", "activite", "physique", "exercice", "sport",
+                "marche", "course", "natation", "gymnastique",
+                "arrêt", "arret", "cessation", "abstinence", "sevrage",
+                "tabac", "cigarette", "alcool", "drogue", "cannabis",
+                "contrôle", "controle", "surveillance", "monitoring", "suivi",
                 
-                # Common diseases and conditions  
-                "hypertension", "diabete", "diabète", "cholesterol", "cholestérol",
-                "infection", "inflammation", "fracture", "entorse",
-                "cystite", "pyélonéphrite", "pyelonephrite", "angine", "grippe",
-                "bronchite", "pneumonie", "asthme", "allergie",
+                # ===== 6. MALADIES CARDIOVASCULAIRES =====
+                "hypertension", "hta", "hypotension",
+                "infarctus", "cardiopathie", "angine", "angor",
+                "arythmie", "fibrillation", "tachycardie", "bradycardie",
+                "insuffisance", "cardiaque", "coronarien", "coronarienne",
+                "avc", "accident", "vasculaire", "cérébral", "cerebral",
+                "thrombose", "embolie", "phlébite", "phlebite",
+                "artériosclérose", "arteriosclerose", "athérosclérose", "atherosclerose",
                 
-                # Body parts and systems
-                "cardiaque", "pulmonaire", "hepatique", "hépatique", 
-                "renale", "rénale", "renal", "cerebral", "cérébral",
-                "arterielle", "artérielle", "arteriel", "artériel",
-                "lombaire", "thoracique", "abdominale", "abdominal",
+                # ===== 7. MALADIES MÉTABOLIQUES ET ENDOCRINIENNES =====
+                "diabete", "diabète", "glycémie", "glycemie",
+                "cholesterol", "cholestérol", "triglycérides", "triglycerides",
+                "hyperlipidémie", "hyperlipidemie", "dyslipidémie", "dyslipidemie",
+                "hypothyroïdie", "hypothyroidie", "hyperthyroïdie", "hyperthyroidie",
+                "thyroïde", "thyroide", "thyroïdien", "thyroidien",
+                "obésité", "obesite", "surpoids", "maigreur",
                 
-                # Medical specialties and types
-                "clinique", "medical", "médical", "chirurgical", "therapeutique", "thérapeutique",
-                "aigu", "aiguë", "chronique", "complique", "compliqué", "compliquee", "compliquée",
+                # ===== 8. MALADIES INFECTIEUSES =====
+                "infection", "infectieux", "infectieuse",
+                "inflammation", "inflammatoire",
+                "cystite", "pyélonéphrite", "pyelonephrite", "néphrite", "nephrite",
+                "angine", "pharyngite", "amygdalite",
+                "grippe", "influenza", "rhume", "rhinopharyngite",
+                "bronchite", "pneumonie", "tuberculose",
+                "gastro-entérite", "gastro", "gastroenterite",
+                "covid", "coronavirus", "sars", "vih", "sida",
+                "hépatite", "hepatite", "cirrhose",
+                "septicémie", "septicemie", "sepsis",
                 
-                # Lab results and bacteria
-                "bacterie", "bactérie", "virus", "coli", "escherichia", "escherichia coli", "e. coli",
-                "staphylocoque", "streptocoque", "leucocytes", "nitrites", "ecbu", "crp", 
-                "elevee", "élevée", "eleve", "élevé", "isole", "isolé", "isolee", "isolée",
+                # ===== 9. MALADIES RESPIRATOIRES =====
+                "asthme", "asthmatique", "bronchite", "bpco",
+                "pneumonie", "pleurésie", "pleuresie",
+                "dyspnée", "dyspnee", "essoufflement",
+                "apnée", "apnee", "ronflement",
+                "emphysème", "emphyseme", "fibrose",
                 
-                # Medications and treatments  
-                "antibiotique", "paracetamol", "ciprofloxacine", "amoxicilline",
-                "ibuprofene", "ibuprofène", "aspirine", "doliprane",
+                # ===== 10. MALADIES OSTÉO-ARTICULAIRES =====
+                "arthrose", "arthrite", "rhumatisme",
+                "polyarthrite", "spondylarthrite",
+                "ostéoporose", "osteoporose",
+                "fracture", "luxation", "entorse", "foulure",
+                "tendinite", "bursite", "épicondylite", "epicondylite",
+                "lombalgie", "sciatique", "hernie", "discale",
+                "cervicalgie", "dorsalgie",
                 
-                # Administrative terms
-                "rapport", "dossier", "hopital", "hôpital", "service", "urgence",
-                "rendez-vous", "hospitalisation", "suivi"
+                # ===== 11. MALADIES NEUROLOGIQUES =====
+                "migraine", "céphalée", "cephalee", "mal", "tête", "tete",
+                "épilepsie", "epilepsie", "convulsion", "crise",
+                "parkinson", "alzheimer", "démence", "demence",
+                "sclérose", "sclerose", "myasthénie", "myasthenie",
+                "neuropathie", "névralgie", "nevralgie",
+                "vertige", "étourdissement", "etourdissement",
+                
+                # ===== 12. MALADIES DIGESTIVES =====
+                "gastrite", "ulcère", "ulcere",
+                "reflux", "rgo", "brûlure", "brulure", "estomac",
+                "colite", "maladie", "crohn", "rectocolite",
+                "diverticulite", "constipation", "diarrhée", "diarrhee",
+                "hémorroïdes", "hemorroides", "fissure", "anale",
+                
+                # ===== 13. CANCERS ET TUMEURS =====
+                "cancer", "cancéreux", "cancereuse",
+                "tumeur", "néoplasie", "neoplasie",
+                "carcinome", "sarcome", "mélanome", "melanome",
+                "leucémie", "leucemie", "lymphome",
+                "métastase", "metastase", "métastatique", "metastatique",
+                "chimiothérapie", "chimiotherapie", "radiothérapie", "radiotherapie",
+                "oncologie", "oncologique",
+                
+                # ===== 14. ALLERGIES ET IMMUNOLOGIE =====
+                "allergie", "allergique", "atopie",
+                "urticaire", "eczéma", "eczema", "dermatite",
+                "anaphylaxie", "choc", "allergique",
+                "immunité", "immunite", "immunologique",
+                "auto-immune", "auto", "immune",
+                
+                # ===== 15. PARTIES DU CORPS ET ANATOMIE =====
+                # Tête et cou
+                "tête", "tete", "crâne", "crane", "cerveau",
+                "œil", "oeil", "yeux", "cornée", "cornee", "rétine", "retine",
+                "oreille", "tympan", "audition",
+                "nez", "sinus", "nasale", "odorat",
+                "bouche", "langue", "dent", "gencive", "lèvre", "levre",
+                "gorge", "pharynx", "larynx", "trachée", "trachee",
+                "cou", "thyroïde", "thyroide",
+                
+                # Thorax
+                "coeur", "cœur", "cardiaque", "coronaire",
+                "poumon", "bronche", "alvéole", "alveole", "pleural",
+                "thorax", "thoracique", "sein", "mammaire",
+                
+                # Abdomen
+                "estomac", "gastrique",
+                "foie", "hépatique", "hepatique", "biliaire",
+                "pancréas", "pancreas", "pancréatique", "pancreatique",
+                "rate", "splénique", "splenique",
+                "intestin", "côlon", "colon", "rectum", "anus",
+                "vésicule", "vesicule",
+                
+                # Système urinaire
+                "rein", "rénal", "renal", "néphrétique", "nephretique",
+                "vessie", "urètre", "uretre", "urinaire",
+                "prostate", "prostatique",
+                
+                # Système reproducteur
+                "utérus", "uterus", "utérin", "uterin",
+                "ovaire", "ovarien", "ovarienne",
+                "vagin", "vaginal", "vaginale",
+                "testicule", "testiculaire",
+                
+                # Membres et squelette
+                "bras", "avant-bras", "coude", "poignet", "main", "doigt",
+                "jambe", "cuisse", "genou", "cheville", "pied", "orteil",
+                "os", "osseux", "squelette", "vertèbre", "vertebre",
+                "colonne", "vertébrale", "vertebrale", "lombaire",
+                "articulation", "articulaire",
+                
+                # Peau
+                "peau", "cutané", "cutane", "derme", "épiderme", "epiderme",
+                
+                # Vaisseaux
+                "artère", "artere", "artériel", "arteriel",
+                "veine", "veineux", "veineuse",
+                "capillaire", "vasculaire",
+                
+                # ===== 16. TYPES ET QUALIFICATIFS MÉDICAUX =====
+                "chirurgical", "chirurgicale", "opératoire", "operatoire",
+                "aigu", "aiguë", "aigu", "aigue",
+                "chronique", "récurrent", "recurrent", "récidivant", "recidivant",
+                "complique", "compliqué", "compliquee", "compliquée",
+                "bénin", "benin", "bénigne", "benigne",
+                "malin", "maligne", "grave", "sévère", "severe",
+                "léger", "leger", "légère", "legere", "modéré", "modere",
+                "asymptomatique", "symptomatique",
+                "primaire", "secondaire", "tertiaire",
+                "bilatéral", "bilateral", "unilatéral", "unilateral",
+                "proximal", "distal", "latéral", "lateral", "médian", "median",
+                
+                # ===== 17. BACTÉRIES, VIRUS ET MICROBES =====
+                "bacterie", "bactérie", "bactérien", "bacterien",
+                "virus", "viral", "virale",
+                "champignon", "fongique", "mycose",
+                "parasite", "parasitaire",
+                "escherichia", "coli", "e. coli", "e.coli",
+                "staphylocoque", "staphylococcus", "aureus",
+                "streptocoque", "streptococcus",
+                "salmonelle", "salmonella",
+                "candida", "albicans",
+                
+                # ===== 18. ANALYSES ET RÉSULTATS DE LABORATOIRE =====
+                "ecbu", "culot", "urinaire",
+                "leucocytes", "hématies", "hematies", "globules",
+                "nitrites", "protéinurie", "proteinurie",
+                "crp", "protéine", "proteine", "réactive", "reactive",
+                "créatinine", "creatinine", "urée", "uree",
+                "transaminases", "bilirubine",
+                "hémoglobine", "hemoglobine", "hématocrite", "hematocrite",
+                "plaquettes", "coagulation", "inr",
+                "tsh", "t3", "t4", "hormone",
+                "elevee", "élevée", "elevé", "élevé",
+                "diminue", "diminué", "diminuee", "diminuée",
+                "normal", "normale", "anormal", "anormale",
+                "positif", "positive", "négatif", "negatif", "négative", "negative",
+                "isole", "isolé", "isolee", "isolée", "détecté", "detecte",
+                
+                # ===== 19. MÉDICAMENTS (liste exhaustive des plus courants) =====
+                # Antibiotiques
+                "antibiotique", "amoxicilline", "augmentin",
+                "ciprofloxacine", "cipro", "ofloxacine",
+                "azithromycine", "zithromax", "clarithromycine",
+                "doxycycline", "métronidazole", "metronidazole",
+                "céphalosporine", "cephalosporine", "ceftriaxone",
+                
+                # Antalgiques et anti-inflammatoires
+                "paracetamol", "paracétamol", "doliprane", "efferalgan", "dafalgan",
+                "ibuprofene", "ibuprofène", "advil", "nurofen",
+                "aspirine", "kardegic",
+                "codéine", "codeine", "tramadol", "morphine",
+                "naproxène", "naproxene", "kétoprofène", "ketoprofene",
+                
+                # Cardiovasculaires
+                "ramipril", "enalapril", "périndopril", "perindopril",
+                "amlodipine", "nifédipine", "nifedipine",
+                "bisoprolol", "métoprolol", "metoprolol", "aténolol", "atenolol",
+                "atorvastatine", "simvastatine", "rosuvastatine",
+                "clopidogrel", "plavix", "warfarine", "coumadine",
+                
+                # Diabète
+                "metformine", "métformine", "glucophage",
+                "insuline", "lantus", "novorapid",
+                "gliclazide", "diamicron",
+                
+                # Autres classes
+                "levothyrox", "l-thyroxine",
+                "ventoline", "salbutamol", "bronchodilatateur", "bronchodilatateur",
+                "cortisone", "prednisone", "prednisolone", "corticoïde", "corticoide",
+                "omeprazole", "oméprazole", "esoméprazole", "esomeprazole",
+                "lisinopril", "losartan", "valsartan",
+                "furosémide", "furosemide", "lasilix",
+                "spironolactone", "aldactone",
+                
+                # ===== 20. PROCÉDURES ET EXAMENS MÉDICAUX =====
+                "scanner", "tdm", "tomodensitométrie", "tomodensitometrie",
+                "irm", "résonance", "resonance", "magnétique", "magnetique",
+                "radiographie", "radio", "rayon",
+                "échographie", "echographie", "écho", "echo", "doppler",
+                "endoscopie", "coloscopie", "gastroscopie",
+                "biopsie", "ponction", "prélèvement", "prelevement",
+                "ecg", "électrocardiogramme", "electrocardiogramme",
+                "eeg", "électroencéphalogramme", "electroencephalogramme",
+                "spirométrie", "spirometrie",
+                "cathétérisme", "catheterisme",
+                
+                # ===== 21. TERMES ADMINISTRATIFS ET ORGANISATIONNELS =====
+                "dossier", "fichier", "document", "formulaire",
+                "hopital", "hôpital", "clinique", "dispensaire",
+                "service", "département", "departement", "unité", "unite",
+                "urgence", "urgences", "réanimation", "reanimation",
+                "hospitalisation", "séjour", "sejour",
+                "ambulatoire", "externe", "interne",
+                "suivi", "contrôle", "controle", "surveillance",
+                "cabinet", "centre", "établissement", "etablissement",
+                "mutuelle", "assurance", "sécurité", "securite", "sociale",
+                
+                # ===== 22. TERMES TEMPORELS (contexte médical, pas dates exactes) =====
+                "jour", "jours", "semaine", "semaines", "mois", "année", "annee", "années", "annees",
+                "quotidien", "quotidienne", "journalier", "journalière", "journaliere",
+                "hebdomadaire", "mensuel", "mensuelle", "annuel", "annuelle",
+                "durée", "duree", "période", "periode", "délai", "delai",
+                "minute", "minutes", "heure", "heures",
+                "matin", "midi", "soir", "nuit", "après-midi", "apres-midi",
+                "continu", "continue", "régulier", "regulier", "régulière", "reguliere",
+                "dans", "depuis", "pendant", "durant",
+                "par", "fois", "par jour", "par semaine",
+                
+                # ===== 23. VACCINS =====
+                "vaccin", "vaccination", "immunisation",
+                "bcg", "dtpolio", "ror", "rougeole", "oreillons", "rubéole", "rubeole",
+                "hépatite", "hepatite", "pneumocoque", "méningocoque", "meningocoque",
+                "grippe", "covid", "papillomavirus", "hpv",
+                
+                # ===== 24. TERMES DE QUANTITÉ ET FRÉQUENCE =====
+                "dose", "dosage", "posologie",
+                "fois", "prise", "comprimé", "comprime", "gélule", "gelule",
+                "goutte", "gouttes", "cuillère", "cuillere", "sachet",
+                "matin", "midi", "soir", "nuit", "coucher",
+                "repas", "jeun", "jeûn", "avant", "après", "apres",
+                "mg", "gramme", "grammes", "litre", "litres", "ml",
+                
+                # ===== 25. DISPOSITIFS MÉDICAUX =====
+                "appareil", "dispositif", "matériel", "materiel",
+                "prothèse", "prothese", "implant", "pace-maker", "pacemaker",
+                "cathéter", "catheter", "sonde", "drain",
+                "attelle", "plâtre", "platre", "bandage", "pansement",
+                "perfusion", "seringue", "aiguille",
+                
+                # ===== 26. MOTS DE LIAISON ET PRÉPOSITIONS COURANTES =====
+                "le", "la", "les", "un", "une", "des",
+                "de", "du", "à", "au", "aux", "en", "et",
+                "pour", "avec", "sans", "selon",
+                "associée", "associe", "associé", "associees", "associés",
+                "fictive", "fictif", "éducatif", "educatif", "éducative", "educative",
+                "but", "objectif", "fin", "finalité", "finalite",
             ]
             
             filtered_results = []
@@ -248,38 +547,56 @@ async def anonymize_document(request: AnonymizationRequest):
                 entity_text = request.content[result.start:result.end].strip()
                 entity_text_lower = entity_text.lower()
                 
-                # Skip if it's just a field label (short word matching our list)
+                # ÉTAPE 1: Filtrage par correspondance exacte
                 if entity_text_lower in false_positive_patterns:
-                    logger.info(f"Skipping false positive: {entity_text} (type: {result.entity_type})")
+                    logger.info(f"Filtré (exact): {entity_text} (type: {result.entity_type})")
                     continue
                 
-                # Exception: Don't skip if it's a doctor name (contains Dr., Docteur, Pr.)
+                # ÉTAPE 2: Ignorer les noms de médecins (doivent être anonymisés)
                 is_doctor_name = any(title in entity_text for title in ["Dr.", "Dr ", "Docteur", "Pr.", "Professeur"])
                 
-                # Skip if it contains common medical terms (partial match)
-                # This catches compound terms like "Pyélonéphrite aiguë"
-                # BUT don't skip doctor names
+                # ÉTAPE 3: Filtrage par correspondance partielle (termes composés)
+                # Ne s'applique PAS aux noms de médecins
                 is_medical_term = False
                 if not is_doctor_name:
                     for medical_term in false_positive_patterns:
+                        # Seulement pour les termes > 4 caractères pour éviter faux positifs
                         if len(medical_term) > 4 and medical_term in entity_text_lower:
-                            logger.info(f"Skipping medical term: {entity_text} (contains '{medical_term}', type: {result.entity_type})")
+                            logger.info(f"Filtré (partiel): {entity_text} (contient '{medical_term}', type: {result.entity_type})")
                             is_medical_term = True
                             break
                 
                 if is_medical_term:
                     continue
                 
-                # Skip very short entities (likely false positives) unless high confidence
+                # ÉTAPE 4: Filtrer les entités très courtes avec faible confiance
                 if len(entity_text) < 3 and result.score < 0.9:
+                    logger.info(f"Filtré (trop court): {entity_text} (confiance: {result.score})")
                     continue
                 
-                # Skip entities that look like measurements (number + unit)
+                # ÉTAPE 5: Filtrer les mesures numériques (20 mg, 5 g, etc.)
                 import re
-                if re.match(r'^\d+[\s]*(mg|g|kg|ml|l|°c|mmhg|bpm|%)', entity_text_lower):
-                    logger.info(f"Skipping measurement: {entity_text}")
+                if re.match(r'^\d+[\s]*(mg|g|kg|ml|l|°c|mmhg|bpm|%|mm|cm|m)', entity_text_lower):
+                    logger.info(f"Filtré (mesure): {entity_text}")
                     continue
+                
+                # ÉTAPE 6: Filtrer les termes qui commencent par des mots courants
+                common_prefixes = ["traitement", "prescription", "mesures", "recommandations", "note", "régime", "regime", "activité", "activite"]
+                starts_with_common = any(entity_text_lower.startswith(prefix) for prefix in common_prefixes)
+                if starts_with_common and not is_doctor_name:
+                    logger.info(f"Filtré (préfixe commun): {entity_text}")
+                    continue
+                
+                # ÉTAPE 7: Filtrer les phrases composées uniquement de mots de liaison/termes médicaux
+                # Exemple: "sel et en" = 3 mots dont tous sont dans notre liste
+                words_in_entity = entity_text_lower.split()
+                if len(words_in_entity) >= 2:  # Si l'entité contient plusieurs mots
+                    words_matched = sum(1 for word in words_in_entity if word in false_positive_patterns)
+                    if words_matched >= len(words_in_entity) - 1:  # Si presque tous les mots sont dans la liste
+                        logger.info(f"Filtré (phrase composée de termes médicaux): {entity_text}")
+                        continue
                     
+                # Si toutes les vérifications passent, c'est probablement un vrai PII
                 filtered_results.append(result)
             
             analyzer_results = filtered_results

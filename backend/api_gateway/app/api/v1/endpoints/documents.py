@@ -7,7 +7,7 @@ import json
 from typing import List, Optional, Dict, Any
 import aiofiles
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import httpx
 
 from app.core.config import settings
@@ -275,6 +275,37 @@ async def list_documents(
             status_code=500,
             detail=f"Failed to retrieve documents: {str(e)}"
         )
+
+
+@router.get("/{document_id}/content")
+async def get_document_content(
+    document_id: str,
+    current_user: Dict[str, Any] = Depends(get_or_create_user)
+):
+    """
+    Get document text content for analysis (Protected - requires JWT)
+    """
+    logger.info("Get document content", user_id=current_user["id"], document_id=document_id)
+    try:
+        # Forward request to document ingestor service
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.DOC_INGESTOR_URL}/api/v1/documents/{document_id}/content",
+                timeout=30.0
+            )
+            
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Document not found")
+            
+            response.raise_for_status()
+            return Response(content=response.content, media_type="text/plain; charset=utf-8")
+            
+    except httpx.HTTPError as e:
+        logger.error("Failed to get document content", document_id=document_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve document content: {str(e)}")
+    except Exception as e:
+        logger.error("Unexpected error getting document content", document_id=document_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/{document_id}")

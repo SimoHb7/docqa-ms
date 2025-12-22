@@ -159,6 +159,13 @@ export const documentsApi = {
 
   get: (documentId: string) =>
     api.get<Document>(`/documents/${documentId}`),
+  
+  getContent: async (documentId: string): Promise<string> => {
+    const response = await apiClient.get(`/documents/${documentId}/content`, {
+      responseType: 'text',
+    });
+    return response.data;
+  },
 
   delete: (documentId: string) =>
     api.delete(`/documents/${documentId}`),
