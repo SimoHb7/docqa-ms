@@ -8,19 +8,22 @@
 
 ##  Table des Matières
 
-1. [Vue d'Ensemble](#-vue-densemble)
-2. [Architecture](#-architecture)
-3. [Technologies](#-technologies)
-4. [Fonctionnalités Principales](#-fonctionnalités-principales)
-5. [Installation Rapide](#-installation-rapide)
-6. [Services Microservices](#-services-microservices)
-7. [Système DeID HIPAA](#-système-deid-hipaa)
-8. [Service ML/IA](#-service-mlia)
-9. [Sécurité & Authentification](#-sécurité--authentification)
-10. [API Documentation](#-api-documentation)
-11. [Structure du Projet](#-structure-du-projet)
-12. [Performance](#-performance)
-13. [Déploiement](#-déploiement)
+1. [Vue d'Ensemble](#vue-densemble)
+2. [Architecture](#architecture)
+3. [Diagrammes d'Architecture](#diagrammes-darchitecture)
+4. [Technologies](#technologies)
+5. [Fonctionnalités Principales](#fonctionnalités-principales)
+6. [Installation Rapide](#installation-rapide)
+7. [Services Microservices](#services-microservices)
+8. [Système DeID HIPAA](#système-deid-hipaa)
+9. [Service ML/IA](#service-mlia)
+10. [Sécurité & Authentification](#sécurité--authentification)
+11. [API Documentation](#api-documentation)
+12. [Structure du Projet](#structure-du-projet)
+13. [Performance](#performance)
+14. [Déploiement](#déploiement)
+15. [Tests](#tests)
+16. [Contribution](#contribution)
 
 ---
 
@@ -45,162 +48,53 @@
 ### Architecture Microservices Complète
 
 ```mermaid
-graph TB
-    subgraph "Couche Client"
-        UI[React Frontend<br/>Port 3000<br/>TypeScript + MUI]
-    end
+flowchart TD
+    UI[React Frontend<br/>Port 3000] --> Auth0[Auth0<br/>OAuth 2.0]
+    UI --> Gateway[API Gateway<br/>Port 8000]
     
-    subgraph "Couche Authentification"
-        Auth0[Auth0 Service<br/>JWT Tokens<br/>OAuth 2.0]
-    end
+    Gateway --> DocIng[Doc Ingestor<br/>8001]
+    Gateway --> DeID[DeID Service<br/>8002]
+    Gateway --> Index[Indexer<br/>8003]
+    Gateway --> LLM[LLM Q&A<br/>8004]
+    Gateway --> Synth[Synthèse<br/>8005]
+    Gateway --> ML[ML Service<br/>8006]
     
-    subgraph "Couche API Gateway"
-        Gateway[API Gateway<br/>Port 8000<br/>FastAPI + CORS]
-    end
+    ML --> ML1[CamemBERT]
+    ML --> ML2[BioBERT]
     
-    subgraph "Couche ML/IA"
-        ML[ML Service<br/>Port 8006<br/>PyTorch + Transformers]
-        ML1[CamemBERT<br/>Classifier Documents<br/>7 Types]
-        ML2[BioBERT<br/>NER Médical<br/>6 Entités]
-        
-        ML --> ML1
-        ML --> ML2
-    end
-    
-    subgraph "Services de Traitement"
-        DocIng[Doc Ingestor<br/>Port 8001<br/>PDF + OCR]
-        DeID[DeID Service<br/>Port 8002<br/>HIPAA 450+ termes]
-        Index[Indexer Sémantique<br/>Port 8003<br/>Embeddings Vectoriels]
-    end
-    
-    subgraph "Services IA/LLM"
-        LLM[LLM Q&A<br/>Port 8004<br/>Pipeline RAG]
-        Synth[Service Synthèse<br/>Port 8005<br/>Analyse Comparative]
-    end
-    
-    subgraph "Couche Données"
-        PG[(PostgreSQL<br/>Port 5432<br/>Base Principale)]
-        RMQ[RabbitMQ<br/>Ports 5672/15672<br/>File Messages]
-        Models[(Stockage Modèles<br/>Saved Models<br/>Volume Docker)]
-    end
-    
-    UI <-->|JWT Auth| Auth0
-    UI <-->|REST API| Gateway
-    
-    Gateway --> DocIng
-    Gateway --> DeID
-    Gateway --> Index
-    Gateway --> LLM
-    Gateway --> Synth
-    Gateway --> ML
-    
-    DocIng --> ML
-    DeID --> ML
-    
-    DocIng --> RMQ
-    DeID --> RMQ
-    Index --> RMQ
-    ML --> RMQ
-    
-    DocIng --> PG
+    DocIng --> PG[(PostgreSQL)]
     DeID --> PG
     Index --> PG
     LLM --> PG
     Synth --> PG
     ML --> PG
     
-    ML --> Models
+    DocIng --> RMQ[RabbitMQ]
+    DeID --> RMQ
+    Index --> RMQ
+    ML --> RMQ
     
-    style UI fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style Auth0 fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style Gateway fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style ML fill:#e1f5ff,stroke:#01579b,stroke-width:3px
-    style ML1 fill:#fff9c4,stroke:#f57f17
-    style ML2 fill:#fff9c4,stroke:#f57f17
-    style PG fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    style RMQ fill:#ffe0b2,stroke:#e65100,stroke-width:2px
-    style Models fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px
+    ML --> Models[(Saved Models)]
+    
+    style UI fill:#e3f2fd
+    style Gateway fill:#f3e5f5
+    style ML fill:#e1f5ff
+    style PG fill:#c8e6c9
+    style RMQ fill:#ffe0b2
 ```
 
 ### Flux de Traitement de Documents
 
 ```mermaid
-graph LR
-    subgraph "Étape 1: Upload"
-        U1[Utilisateur Sélectionne Fichier]
-        U2[Validation Frontend]
-        U3[Upload vers Gateway]
-        
-        U1 --> U2
-        U2 --> U3
-    end
+flowchart LR
+    U1[Upload] --> I1[Extraction<br/>PDF/OCR]
+    I1 --> D1[Anonymisation<br/>HIPAA]
+    D1 --> S1[Stockage<br/>PostgreSQL]
+    S1 --> IX1[Indexation<br/>Embeddings]
+    IX1 --> ML1[Analyse ML<br/>Optionnel]
     
-    subgraph "Étape 2: Ingestion"
-        I1[Doc Ingestor Reçoit]
-        I2{Type de Fichier?}
-        I3[Extraction Texte PDF]
-        I4[OCR Image]
-        I5[Parse Métadonnées]
-        
-        I1 --> I2
-        I2 -->|PDF| I3
-        I2 -->|Image| I4
-        I3 --> I5
-        I4 --> I5
-    end
-    
-    subgraph "Étape 3: Anonymisation"
-        D1[DeID Service]
-        D2[Détection PII HIPAA]
-        D3[Presidio + spaCy]
-        D4[Remplacement Tokens]
-        
-        D1 --> D2
-        D2 --> D3
-        D3 --> D4
-    end
-    
-    subgraph "Étape 4: Stockage"
-        S1[Sauvegarde PostgreSQL]
-        S2[Génération ID Document]
-        S3[Stockage Métadonnées]
-        
-        S1 --> S2
-        S2 --> S3
-    end
-    
-    subgraph "Étape 5: Indexation"
-        IX1[Indexer Sémantique]
-        IX2[Chunking Texte]
-        IX3[Génération Embeddings]
-        IX4[Stockage Vecteurs]
-        
-        IX1 --> IX2
-        IX2 --> IX3
-        IX3 --> IX4
-    end
-    
-    subgraph "Étape 6: Analyse ML Optionnel"
-        ML1[Déclenchement Utilisateur]
-        ML2[Classification Document]
-        ML3[Extraction Entités]
-        ML4[Affichage Résultats]
-        
-        ML1 --> ML2
-        ML2 --> ML3
-        ML3 --> ML4
-    end
-    
-    U3 --> I1
-    I5 --> D1
-    D4 --> S1
-    S3 --> IX1
-    IX4 --> ML1
-    
-    style ML1 fill:#e1f5ff,stroke:#01579b
-    style ML2 fill:#e1f5ff,stroke:#01579b
-    style ML3 fill:#e1f5ff,stroke:#01579b
-    style ML4 fill:#e1f5ff,stroke:#01579b
+    style D1 fill:#fff3e0
+    style ML1 fill:#e1f5ff
 ```
 
 ---
@@ -256,7 +150,7 @@ L'authentification utilise Auth0 avec OAuth 2.0, garantissant une sécurité de 
   - **BioBERT**: Extraction d'entités médicales NER (110M paramètres)
 - **Anonymisation**: Microsoft Presidio + spaCy fr_core_news_md
 - **Embeddings**: sentence-transformers (all-MiniLM-L6-v2)
-- **LLM**: Mistral 7B / Claude API (Anthropic)
+- **LLM**: Mistral 7B / Grok API (xAI)
 
 ### Sécurité
 - **Auth**: Auth0 OAuth 2.0
@@ -361,7 +255,7 @@ AUTH0_CLIENT_ID=your_client_id
 AUTH0_CLIENT_SECRET=your_client_secret
 
 # LLM API
-ANTHROPIC_API_KEY=your_claude_api_key
+GROK_API_KEY=your_grok_api_key
 
 # RabbitMQ
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
@@ -572,7 +466,7 @@ Test: Prescription médicale réelle
 ---
 
 ### 6️⃣ LLM Q&A Service (Port 8004)
-**LLM**: Mistral 7B / Claude API
+**LLM**: Mistral 7B / Grok API (xAI)
 
 **Architecture RAG**:
 1. **Retrieval**: Recherche sémantique des chunks pertinents
@@ -598,7 +492,7 @@ Question: "Quels sont les antécédents du patient ?"
 ---
 
 ### 7️⃣ Synthesis Service (Port 8005)
-**LLM**: Claude API (Claude 3 Sonnet)
+**LLM**: Grok API (xAI)
 
 **Fonctionnalités**:
 - Analyse comparative multi-documents
