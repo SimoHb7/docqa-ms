@@ -201,13 +201,14 @@ pipeline {
             }
         }
 
+
         stage('Build Docker Images') {
             steps {
                 echo ' Building all Docker images...'
                 script {
                     bat '''
-                        echo Building all services with Docker Compose...
-                        echo Using cached layers to speed up build...
+                        echo Building all services with Docker Compose ...
+                        echo Using cached layers to speed up build ...
                         
                         REM Build with cache and parallel jobs
                         docker compose build --parallel
