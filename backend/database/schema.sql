@@ -203,3 +203,13 @@ VALUES
     (SELECT id FROM qa_interactions WHERE question LIKE '%hypertension%'),
     '{"question_length": 50, "response_length": 120}'
 );
+
+-- ==========================================
+-- SONARQUBE DATABASE
+-- ==========================================
+
+-- Create SonarQube database
+CREATE DATABASE sonarqube WITH ENCODING 'UTF8';
+
+-- Grant privileges to user
+GRANT ALL PRIVILEGES ON DATABASE sonarqube TO "user";
