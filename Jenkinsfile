@@ -26,7 +26,7 @@ pipeline {
 
         stage('Validate Configuration') {
             steps {
-                echo ' Validating Docker Compose configuration...'
+                echo ' Validating Docker Compose configuration ...'
                 script {
                     bat '''
                         echo Checking Docker version...
@@ -215,7 +215,7 @@ pipeline {
                         
                         if errorlevel 1 (
                             echo  Docker build failed
-                            echo Checking which service failed...
+                            echo Checking which service failed ...
                             docker compose config --services
                             exit /b 1
                         ) else (
@@ -238,7 +238,7 @@ pipeline {
                 echo ' Starting all services...'
                 script {
                     bat '''
-                        echo Starting services in detached mode...
+                        echo Starting services in detached mode ...
                         docker compose up -d
                         
                         if errorlevel 1 (
@@ -246,7 +246,7 @@ pipeline {
                             docker compose logs
                             exit /b 1
                         ) else (
-                            echo  Services started successfully
+                            echo  Services started successfully 
                         )
                     '''
                 }
